@@ -11,3 +11,9 @@ CREATE TABLE time (
     id int,
     marked DATE
 );
+
+CREATE TABLE department (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255),
+    leader int
+)
