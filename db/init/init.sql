@@ -29,3 +29,11 @@ CREATE TABLE department_relations (
     FOREIGN KEY (department_id) REFERENCES department(id),
     FOREIGN KEY (parent_department_id) REFERENCES department(id)
 )
+
+CREATE TABLE department_workers (
+    id SERIAL PRIMARY KEY,
+    department_id INT NOT NULL,
+    worker_id INT NOT NULL,
+    FOREIGN KEY (department_id) REFERENCES department(id),
+    FOREIGN KEY (worker_id) REFERENCES users(id)
+)
