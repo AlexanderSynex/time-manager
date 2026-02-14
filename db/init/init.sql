@@ -1,5 +1,5 @@
 CREATE TABLE users (
-    user_id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     table_id INT UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     surname VARCHAR(255) NOT NULL,
@@ -21,3 +21,11 @@ CREATE TABLE department (
     leader_id INT NOT NULL,
     FOREIGN KEY (leader_id) REFERENCES users(user_id)
 );
+
+CREATE TABLE department_relations (
+    id SERIAL PRIMARY KEY,
+    department_id INT NOT NULL,
+    parent_department_id INT NOT NULL,
+    FOREIGN KEY (department_id) REFERENCES department(id),
+    FOREIGN KEY (parent_department_id) REFERENCES department(id)
+)
