@@ -29,6 +29,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan_toolchain.cmake")
+    message(FATAL_ERROR "Conan toolchain not found. Run 'conan install' first.")
+endif()
+
+# Include Conan toolchain
+include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
+
 add_subdirectory(third-party)
 
 add_executable(client src/main.cpp)
