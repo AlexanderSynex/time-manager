@@ -23,19 +23,19 @@ set(PROJECT_VERSION
 )
 message(STATUS "${PROJECT_NAME} version: ${PROJECT_VERSION}")
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan_toolchain.cmake")
-    message(FATAL_ERROR "Conan toolchain not found. Run 'conan install' first.")
-endif()
-
-# Include Conan toolchain
-include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_subdirectory(third-party)
 
+find_package(userver COMPONENTS core postgresql REQUIRED)
+
 add_executable(client src/main.cpp)
+target_link_libraries(client PRIVATE userver::core userver::postgresql)
+
+if(EXISTS ${CMAKE_BINARY_DIR}/compile_commands.json)
+    file(COPY ${CMAKE_BINARY_DIR}/compile_commands.json DESTINATION ${CMAKE_SOURCE_DIR})
+endif()
