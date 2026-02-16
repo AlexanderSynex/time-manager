@@ -1,0 +1,22 @@
+components_manager:
+    task_processors:
+        main-task-processor:
+            worker_threads: 4
+ 
+        fs-task-processor:
+            worker_threads: 1
+ 
+    components:
+        server:
+            listener:
+                port: 8080
+        logging:
+            loggers:
+                default:
+                    file_path: '@stderr'
+                    level: debug
+                    overflow_behavior: discard
+ 
+        handler-add-user:
+            path: /users
+            method: GET,POST

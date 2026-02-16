@@ -33,8 +33,13 @@ add_subdirectory(third-party)
 
 find_package(userver COMPONENTS core postgresql REQUIRED)
 
-add_executable(client src/main.cpp)
+set(SOURCES src/main.cpp 
+            src/add_user.cpp 
+            src/users_handler.cpp)
+
+add_executable(client ${SOURCES})
 target_link_libraries(client PRIVATE userver::core userver::postgresql)
+target_include_directories(client PUBLIC include)
 
 if(EXISTS ${CMAKE_BINARY_DIR}/compile_commands.json)
     file(COPY ${CMAKE_BINARY_DIR}/compile_commands.json DESTINATION ${CMAKE_SOURCE_DIR})
