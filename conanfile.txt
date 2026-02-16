@@ -7,8 +7,7 @@ CMakeToolchain
 
 [options]
 userver/*:with_postgresql=True
-userver/*:with_redis=True
+userver/*:with_grpc=True
 userver/*:with_mongodb=False
-userver/*:with_grpc=False
 userver/*:with_rabbitmq=False
 userver/*:with_clickhouse=False
