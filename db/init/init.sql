@@ -7,19 +7,26 @@ CREATE TABLE users (
 );
 
 CREATE TABLE worktime (
-    user_id INT,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    user_id INT NOT NUlL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     day DATE NOT NULL DEFAULT CURRENT_DATE,
-    arrived TIMESTAMPTZ,
+    arrived TIMESTAMPTZ NOT NULL,
     departed TIMESTAMPTZ
 );
 
 CREATE TABLE department (
     id SERIAL PRIMARY KEY,
-    department_id INT NOT NULL,
-    name VARCHAR(255),
+    name VARCHAR(255) NOT NULL,
     leader_id INT NOT NULL,
-    FOREIGN KEY (leader_id) REFERENCES users(user_id)
+    FOREIGN KEY (leader_id) REFERENCES users(id)
+);
+
+CREATE TABLE department_workers (
+    id SERIAL PRIMARY KEY,
+    department_id INT NOT NULL,
+    worker_id INT NOT NULL,
+    FOREIGN KEY (department_id) REFERENCES department(id),
+    FOREIGN KEY (worker_id) REFERENCES users(id)
 );
 
 CREATE TABLE department_relations (
@@ -28,12 +35,4 @@ CREATE TABLE department_relations (
     parent_department_id INT NOT NULL,
     FOREIGN KEY (department_id) REFERENCES department(id),
     FOREIGN KEY (parent_department_id) REFERENCES department(id)
-)
-
-CREATE TABLE department_workers (
-    id SERIAL PRIMARY KEY,
-    department_id INT NOT NULL,
-    worker_id INT NOT NULL,
-    FOREIGN KEY (department_id) REFERENCES department(id),
-    FOREIGN KEY (worker_id) REFERENCES users(id)
-)
+);
