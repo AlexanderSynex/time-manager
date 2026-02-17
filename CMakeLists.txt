@@ -34,8 +34,7 @@ add_subdirectory(third-party)
 find_package(userver COMPONENTS core postgresql REQUIRED)
 
 set(SOURCES src/main.cpp 
-            src/add_user.cpp 
-            src/users_handler.cpp)
+            src/services/AdministrationService.cpp)
 
 add_executable(client ${SOURCES})
 target_link_libraries(client PRIVATE userver::core userver::postgresql)
