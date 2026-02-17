@@ -5,11 +5,11 @@
 // Note: this is for the purposes of tests/samples only
 #include <userver/utest/using_namespace_userver.hpp>
 
-#include "users_handler.hpp"
+#include "services/AdministrationService.hpp"
 
-int main(int argc, char *argv[]) {
-  auto component_list =
-      components::MinimalServerComponentList().Append<UserAddHandler>();
+int main(int argc, char* argv[])
+{
+    auto component_list = components::MinimalServerComponentList().Append<services::control_role::AdministrationService>();
 
-  return utils::DaemonMain(argc, argv, component_list);
+    return utils::DaemonMain(argc, argv, component_list);
 }

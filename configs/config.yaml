@@ -17,6 +17,6 @@ components_manager:
                     level: debug
                     overflow_behavior: discard
  
-        handler-add-user:
-            path: /users
-            method: GET,POST
+        administration-service:
+            path: /api/v1/control
+            method: POST,PUT
