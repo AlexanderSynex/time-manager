@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(PROJECT_NAME my_project)
+set(PROJECT_NAME worktime-manager)
 
 project(${PROJECT_NAME})
 
@@ -36,9 +36,22 @@ find_package(userver COMPONENTS core postgresql REQUIRED)
 set(SOURCES src/main.cpp 
             src/services/AdministrationService.cpp)
 
-add_executable(client ${SOURCES})
-target_link_libraries(client PRIVATE userver::core userver::postgresql)
-target_include_directories(client PUBLIC include)
+add_executable(${PROJECT_NAME} ${SOURCES})
+
+userver_add_sql_library(
+    ${PROJECT_NAME}_sql
+    NAMESPACE
+    worktime_scheduler_service
+    SOURCE_DIR
+    db/queries
+    OUTPUT_DIR
+    ${CMAKE_CURRENT_BINARY_DIR}
+    SQL_FILES
+    *.sql
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE userver::core userver::postgresql ${PROJECT_NAME}_sql)
+target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 if(EXISTS ${CMAKE_BINARY_DIR}/compile_commands.json)
     file(COPY ${CMAKE_BINARY_DIR}/compile_commands.json DESTINATION ${CMAKE_SOURCE_DIR})

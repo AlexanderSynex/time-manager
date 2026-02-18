@@ -1,0 +1,3 @@
+INSERT INTO worktime (user_id, arrived)
+VALUES($1, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;
