@@ -34,37 +34,39 @@ add_subdirectory(third-party)
 find_package(userver COMPONENTS core postgresql REQUIRED)
 
 set(SOURCES src/main.cpp 
-            src/services/AdministrationService.cpp)
+            src/services/AdministrationService.cpp
+            src/services/WorktimeService.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+# userver_add_sql_library(
+#     ${PROJECT_NAME}_manager_sql
+#     NAMESPACE
+#     worktime_manager_service
+#     SOURCE_DIR
+#     db/queries/manager
+#     OUTPUT_DIR
+#     ${CMAKE_CURRENT_BINARY_DIR}
+#     SQL_FILES
+#     *.sql
+# )
+
 userver_add_sql_library(
-    ${PROJECT_NAME}_manager_sql
+    ${PROJECT_NAME}_sql
     NAMESPACE
-    worktime_manager_service
+    worktime_service
     SOURCE_DIR
-    db/queries/manager
+    db/queries
     OUTPUT_DIR
     ${CMAKE_CURRENT_BINARY_DIR}
     SQL_FILES
     *.sql
 )
 
-userver_add_sql_library(
-    ${PROJECT_NAME}_user_sql
-    NAMESPACE
-    worktime_user_service
-    SOURCE_DIR
-    db/queries/user
-    OUTPUT_DIR
-    ${CMAKE_CURRENT_BINARY_DIR}
-    SQL_FILES
-    *.sql
-)
+set(SQL_LIBS ${PROJECT_NAME}_sql)
 
-set(SQL_LIBS "${PROJECT_NAME}_user_sql")
 
-target_link_libraries(${PROJECT_NAME} PRIVATE userver::core userver::postgresql ${PROJECT_NAME}_user_sql)
+target_link_libraries(${PROJECT_NAME} PRIVATE userver::core userver::postgresql ${SQL_LIBS})
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 if(EXISTS ${CMAKE_BINARY_DIR}/compile_commands.json)
