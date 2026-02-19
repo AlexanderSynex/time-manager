@@ -11,6 +11,8 @@
 #include <userver/server/http/http_method.hpp>
 #include <userver/storages/postgres/cluster.hpp>
 
+#include <worktime_postgres_service/sql_queries.hpp>
+
 using namespace userver;
 using namespace userver::formats::json;
 using namespace services::control_role;
@@ -67,13 +69,18 @@ Worker AdministrationService::extractWorkerInfo(const Value& request_json) const
         request_json[Worker::patronomic_key].IsMissing() ? "" : request_json[Worker::patronomic_key].As<std::string>() };
 }
 
-Value AdministrationService::processWorker(Worker&& target, bool createNew) const
+Value AdministrationService::processWorker(Worker&& user, bool createNew) const
 {
-    // p_cluser->Execute(storages::postgres::ClusterHostType::kRoundRobin, kSelec)
-    (void)(target);
-    (void)(createNew);
-    ValueBuilder builder;
-    return builder.ExtractValue();
+
+    auto trx = p_db->Begin("managing_user_transaction", storages::postgres::ClusterHostType::kMaster, {});
+    auto query = createNew ? worktime_postgres_service::sql::kNewUser : worktime_postgres_service::sql::kUpdateUser;
+    auto res = trx.Execute(query, static_cast<int>(user.table_id), user.name, user.surname, user.patronomic);
+    if (res.RowsAffected()) {
+        trx.Commit();
+        return ValueBuilder(true).ExtractValue();
+    }
+    trx.Rollback();
+    return ValueBuilder(false).ExtractValue();
 }
 
 server::handlers::HttpHandlerJsonBase::Value
