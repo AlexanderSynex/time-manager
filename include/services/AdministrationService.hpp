@@ -2,14 +2,20 @@
 
 #include "info/worker.hpp"
 
+#include <userver/clients/dns/component.hpp>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
+#include <userver/components/component_list.hpp>
 #include <userver/server/handlers/http_handler_json_base.hpp>
 
 #include <userver/storages/postgres/cluster.hpp>
+#include <userver/storages/postgres/component.hpp>
 #include <userver/storages/postgres/postgres_fwd.hpp>
+#include <userver/testsuite/testsuite_support.hpp>
 
 namespace services::control_role {
+
+///@brief Служебный сервис для управления данными о пользователях
 class AdministrationService final
     : public userver::server::handlers::HttpHandlerJsonBase {
 public:
@@ -34,6 +40,13 @@ private:
     bool validateJson(const Value& request_json) const;
 
 private:
-    userver::storages::postgres::ClusterPtr p_cluser = nullptr;
+    userver::storages::postgres::ClusterPtr p_db = nullptr;
 };
+
+static const auto AdministartionComponents = []() -> userver::components::ComponentList { return userver::components::ComponentList {}
+                                                                                              .Append<::services::control_role::AdministrationService>()
+                                                                                              .Append<userver::components::Postgres>("db")
+                                                                                              .Append<userver::components::TestsuiteSupport>()
+                                                                                              .Append<userver::clients::dns::Component>(); };
+
 } // namespace services::control_role

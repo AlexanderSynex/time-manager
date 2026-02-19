@@ -16,10 +16,7 @@
 int main(int argc, char* argv[])
 {
     auto component_list = components::MinimalServerComponentList()
-                              .Append<services::control_role::AdministrationService>()
-                              .Append<components::Postgres>("db")
-                              .Append<components::TestsuiteSupport>()
-                              .Append<userver::clients::dns::Component>();
+                              .AppendComponentList(services::control_role::AdministartionComponents());
 
     return utils::DaemonMain(argc, argv, component_list);
 }
