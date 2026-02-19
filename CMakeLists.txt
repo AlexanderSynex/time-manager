@@ -54,7 +54,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 userver_add_sql_library(
     ${PROJECT_NAME}_postgres_sql
     NAMESPACE
-    worktime_service
+    worktime_postgres_service
     SOURCE_DIR
     db/queries
     OUTPUT_DIR
