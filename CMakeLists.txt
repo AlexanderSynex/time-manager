@@ -52,7 +52,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # )
 
 userver_add_sql_library(
-    ${PROJECT_NAME}_sql
+    ${PROJECT_NAME}_postgres_sql
     NAMESPACE
     worktime_service
     SOURCE_DIR
@@ -63,7 +63,7 @@ userver_add_sql_library(
     *.sql
 )
 
-set(SQL_LIBS ${PROJECT_NAME}_sql)
+set(SQL_LIBS ${PROJECT_NAME}_postgres_sql)
 
 
 target_link_libraries(${PROJECT_NAME} PRIVATE userver::core userver::postgresql ${SQL_LIBS})
