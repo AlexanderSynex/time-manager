@@ -39,18 +39,32 @@ set(SOURCES src/main.cpp
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 userver_add_sql_library(
-    ${PROJECT_NAME}_sql
+    ${PROJECT_NAME}_manager_sql
     NAMESPACE
-    worktime_scheduler_service
+    worktime_manager_service
     SOURCE_DIR
-    db/queries
+    db/queries/manager
     OUTPUT_DIR
     ${CMAKE_CURRENT_BINARY_DIR}
     SQL_FILES
     *.sql
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE userver::core userver::postgresql ${PROJECT_NAME}_sql)
+userver_add_sql_library(
+    ${PROJECT_NAME}_user_sql
+    NAMESPACE
+    worktime_user_service
+    SOURCE_DIR
+    db/queries/user
+    OUTPUT_DIR
+    ${CMAKE_CURRENT_BINARY_DIR}
+    SQL_FILES
+    *.sql
+)
+
+set(SQL_LIBS "${PROJECT_NAME}_user_sql")
+
+target_link_libraries(${PROJECT_NAME} PRIVATE userver::core userver::postgresql ${PROJECT_NAME}_user_sql)
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 if(EXISTS ${CMAKE_BINARY_DIR}/compile_commands.json)
