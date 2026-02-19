@@ -12,11 +12,15 @@
 #include <userver/utest/using_namespace_userver.hpp>
 
 #include "services/AdministrationService.hpp"
+#include "services/GeneralComponents.hpp"
+#include "services/WorktimeService.hpp"
 
 int main(int argc, char* argv[])
 {
     auto component_list = components::MinimalServerComponentList()
-                              .AppendComponentList(services::control_role::AdministartionComponents());
+                              .AppendComponentList(services::components::CommonComponents())
+                              .Append<services::control_role::AdministrationService>()
+                              .Append<services::control_role::WorktimeService>();
 
     return utils::DaemonMain(argc, argv, component_list);
 }

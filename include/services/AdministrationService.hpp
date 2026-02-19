@@ -43,10 +43,4 @@ private:
     userver::storages::postgres::ClusterPtr p_db = nullptr;
 };
 
-static const auto AdministartionComponents = []() -> userver::components::ComponentList { return userver::components::ComponentList {}
-                                                                                              .Append<::services::control_role::AdministrationService>()
-                                                                                              .Append<userver::components::Postgres>("db")
-                                                                                              .Append<userver::components::TestsuiteSupport>()
-                                                                                              .Append<userver::clients::dns::Component>(); };
-
 } // namespace services::control_role

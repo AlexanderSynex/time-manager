@@ -3,6 +3,7 @@
 
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
+#include <userver/storages/postgres/cluster_types.hpp>
 #include <userver/storages/postgres/component.hpp>
 
 #include <userver/formats/json/value_builder.hpp>
@@ -17,7 +18,7 @@ using namespace services::control_role;
 AdministrationService::AdministrationService(const components::ComponentConfig& config,
     const components::ComponentContext& component_context)
     : userver::server::handlers::HttpHandlerJsonBase::HttpHandlerJsonBase(config, component_context)
-    , p_cluser(component_context.FindComponent<components::Postgres>("db").GetCluster())
+    , p_db(component_context.FindComponent<components::Postgres>("db").GetCluster())
 {
 }
 
@@ -68,13 +69,10 @@ Worker AdministrationService::extractWorkerInfo(const Value& request_json) const
 
 Value AdministrationService::processWorker(Worker&& target, bool createNew) const
 {
+    // p_cluser->Execute(storages::postgres::ClusterHostType::kRoundRobin, kSelec)
+    (void)(target);
+    (void)(createNew);
     ValueBuilder builder;
-    builder["action"] = createNew ? "Creating" : "Modifying";
-    ValueBuilder person;
-    person["name"] = target.name;
-    person["surname"] = target.surname;
-    person["table_id"] = target.table_id;
-    builder["who"] = person.ExtractValue();
     return builder.ExtractValue();
 }
 
