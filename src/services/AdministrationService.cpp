@@ -1,10 +1,14 @@
 #include "services/AdministrationService.hpp"
 #include "info/worker.hpp"
+#include "services/details/UserService.hpp"
 
+#include <fmt/format.h>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
+#include <userver/formats/json/exception.hpp>
+#include <userver/logging/log.hpp>
+#include <userver/server/handlers/exceptions.hpp>
 #include <userver/storages/postgres/cluster_types.hpp>
-#include <userver/storages/postgres/component.hpp>
 
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/server/handlers/http_handler_json_base.hpp>
@@ -19,8 +23,8 @@ using namespace services::control_role;
 
 AdministrationService::AdministrationService(const components::ComponentConfig& config,
     const components::ComponentContext& component_context)
-    : userver::server::handlers::HttpHandlerJsonBase::HttpHandlerJsonBase(config, component_context)
-    , p_db(component_context.FindComponent<components::Postgres>("db").GetCluster())
+    : details::UserService(component_context, "db")
+    , userver::server::handlers::HttpHandlerJsonBase::HttpHandlerJsonBase(config, component_context)
 {
 }
 
@@ -29,69 +33,29 @@ Value AdministrationService::HandleRequestJsonThrow(const HttpRequest& request,
     RequestContext&) const
 {
     switch (request.GetMethod()) {
-    case server::http::HttpMethod::kPost:
-        return processCreation(std::move(request), std::move(request_json));
     case server::http::HttpMethod::kPut:
-        return processModification(std::move(request), std::move(request_json));
+        return processWorker(extract(request_json));
     default:
         throw server::handlers::ClientError(server::handlers::ExternalBody {
             fmt::format("Unsupported method {}", request.GetMethod()) });
     }
 }
 
-bool AdministrationService::validateJson(const Value& request_json) const
+Value AdministrationService::processWorker(Worker&& user) const
 {
-    return request_json.HasMember(Worker::name_key) and request_json.HasMember(Worker::surname_key) and request_json.HasMember(Worker::table_key);
-}
+    auto trx = db()->Begin("managing_user_transaction", storages::postgres::ClusterHostType::kMaster, {});
+    auto res = trx.Execute(worktime_postgres_service::sql::kUpdateUser, static_cast<int>(user.table_id), user.name, user.surname, user.patronomic);
 
-Worker AdministrationService::extractWorkerInfo(const Value& request_json) const
-{
-    if (not request_json[Worker::name_key].IsString())
-        throw server::handlers::ClientError(server::handlers::ExternalBody {
-            fmt::format("Unsupported type for {} (should be: {})", Worker::name_key, "string") });
+    throw server::handlers::ClientError(server::handlers::ExternalBody {
+        fmt::format("Unsupported method {}", static_cast<int>(user.table_id)) });
 
-    if (not request_json[Worker::surname_key].IsString())
-        throw server::handlers::ClientError(server::handlers::ExternalBody {
-            fmt::format("Unsupported type for {} (should be: {})", Worker::surname_key, "string") });
-
-    if (not request_json[Worker::table_key].IsNumber())
-        throw server::handlers::ClientError(server::handlers::ExternalBody {
-            fmt::format("Unsupported type for {} (should be: {})", Worker::table_key, "number") });
-
-    if (not request_json[Worker::patronomic_key].IsMissing())
-        if (not request_json[Worker::patronomic_key].IsString())
-            throw server::handlers::ClientError(server::handlers::ExternalBody {
-                fmt::format("Unsupported type for {} (should be: {})", Worker::patronomic_key, "string") });
-
-    return { request_json[Worker::table_key].As<std::size_t>(),
-        request_json[Worker::name_key].As<std::string>(),
-        request_json[Worker::surname_key].As<std::string>(),
-        request_json[Worker::patronomic_key].IsMissing() ? "" : request_json[Worker::patronomic_key].As<std::string>() };
-}
-
-Value AdministrationService::processWorker(Worker&& user, bool createNew) const
-{
-
-    auto trx = p_db->Begin("managing_user_transaction", storages::postgres::ClusterHostType::kMaster, {});
-    auto query = createNew ? worktime_postgres_service::sql::kNewUser : worktime_postgres_service::sql::kUpdateUser;
-    auto res = trx.Execute(query, static_cast<int>(user.table_id), user.name, user.surname, user.patronomic);
+    auto r = ValueBuilder();
     if (res.RowsAffected()) {
         trx.Commit();
-        return ValueBuilder(true).ExtractValue();
+        r["res"] = "success";
+        return r.ExtractValue();
     }
     trx.Rollback();
-    return ValueBuilder(false).ExtractValue();
-}
-
-server::handlers::HttpHandlerJsonBase::Value
-AdministrationService::processCreation(
-    const HttpRequest&, const Value& request_json) const
-{
-    return processWorker(extractWorkerInfo(request_json), true);
-}
-server::handlers::HttpHandlerJsonBase::Value
-AdministrationService::processModification(
-    const HttpRequest&, const Value& request_json) const
-{
-    return processWorker(extractWorkerInfo(request_json), false);
+    r["res"] = "fail";
+    return r.ExtractValue();
 }

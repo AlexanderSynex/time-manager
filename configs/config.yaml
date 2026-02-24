@@ -18,8 +18,8 @@ components_manager:
                     overflow_behavior: discard
  
         administration-service:
-            path: /api/v1/user
-            method: POST,PUT
+            path: /api/v1/control
+            method: PUT
 
         worktime-service:
             path: /api/v1/time
@@ -29,7 +29,7 @@ components_manager:
 
         db:
             # "postgresql://[user]:[password]@[host]:[port]/[database]"
-            dbconnection: "postgresql://admin:admin@127.0.0.1:5432/otftime"
+            dbconnection: "postgresql://admin:admin@127.0.0.1:5432/company"
             dns_resolver: async
 
         dns-client:

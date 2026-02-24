@@ -35,21 +35,10 @@ find_package(userver COMPONENTS core postgresql REQUIRED)
 
 set(SOURCES src/main.cpp 
             src/services/AdministrationService.cpp
-            src/services/WorktimeService.cpp)
+            src/services/WorktimeService.cpp
+            src/services/details/UserService.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-
-# userver_add_sql_library(
-#     ${PROJECT_NAME}_manager_sql
-#     NAMESPACE
-#     worktime_manager_service
-#     SOURCE_DIR
-#     db/queries/manager
-#     OUTPUT_DIR
-#     ${CMAKE_CURRENT_BINARY_DIR}
-#     SQL_FILES
-#     *.sql
-# )
 
 userver_add_sql_library(
     ${PROJECT_NAME}_postgres_sql
