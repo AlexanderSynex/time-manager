@@ -1,8 +1,8 @@
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     table_id INT UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    surname VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL CHECK (name != ''),
+    surname VARCHAR(255) NOT NULL CHECK (surname != ''),
     patronymic VARCHAR(255)
 );
 
