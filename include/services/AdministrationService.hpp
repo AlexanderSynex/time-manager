@@ -31,7 +31,7 @@ public:
         RequestContext& context) const override;
 
 private:
-    Value processWorker(Worker&& target) const;
+    Value processWorker(Worker&& target, const HttpRequest& request) const;
 
 private:
     userver::storages::postgres::ClusterPtr p_db = nullptr;

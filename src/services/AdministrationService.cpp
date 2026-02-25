@@ -6,6 +6,7 @@
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/exception.hpp>
+#include <userver/http/status_code.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/server/handlers/exceptions.hpp>
 #include <userver/storages/postgres/cluster_types.hpp>
@@ -34,28 +35,23 @@ Value AdministrationService::HandleRequestJsonThrow(const HttpRequest& request,
 {
     switch (request.GetMethod()) {
     case server::http::HttpMethod::kPut:
-        return processWorker(extract(request_json));
+        return processWorker(extract(request_json), request);
     default:
         throw server::handlers::ClientError(server::handlers::ExternalBody {
             fmt::format("Unsupported method {}", request.GetMethod()) });
     }
 }
 
-Value AdministrationService::processWorker(Worker&& user) const
+Value AdministrationService::processWorker(Worker&& user, const HttpRequest& request) const
 {
     auto trx = db()->Begin("managing_user_transaction", storages::postgres::ClusterHostType::kMaster, {});
-    auto res = trx.Execute(worktime_postgres_service::sql::kUpdateUser, static_cast<int>(user.table_id), user.name, user.surname, user.patronomic);
-
-    throw server::handlers::ClientError(server::handlers::ExternalBody {
-        fmt::format("Unsupported method {}", static_cast<int>(user.table_id)) });
-
-    auto r = ValueBuilder();
+    auto res = trx.Execute(worktime_postgres_service::sql::kUpdateUser, static_cast<int>(user.table_id), user.name, user.surname, user.patronymic);
     if (res.RowsAffected()) {
         trx.Commit();
-        r["res"] = "success";
-        return r.ExtractValue();
+        request.GetHttpResponse().SetStatus(userver::v2_15::http::kCreated);
+        return this->find(user.table_id);
     }
     trx.Rollback();
-    r["res"] = "fail";
-    return r.ExtractValue();
+    request.GetHttpResponse().SetStatus(userver::v2_15::http::kBadRequest);
+    return this->find(user.table_id);
 }

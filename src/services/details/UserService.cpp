@@ -1,8 +1,10 @@
 #include "services/details/UserService.hpp"
 #include "info/worker.hpp"
-#include <cassert>
+
 #include <fmt/format.h>
+#include <optional>
 #include <string_view>
+#include <userver/formats/json/value_builder.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/server/handlers/exceptions.hpp>
 #include <userver/server/server.hpp>
@@ -21,46 +23,62 @@ UserService::UserService(const components::ComponentContext& context, std::strin
 {
 }
 
-Worker UserService::extract(const Value& request_json) const
+Worker UserService::extract(const JsonData& request) const
 {
-    if (not request_json[Worker::name_key].IsString())
+    if (not request[Worker::name_key].IsString())
         throw server::handlers::ClientError(server::handlers::ExternalBody {
             fmt::format("Unsupported type for {} (should be: {})", Worker::name_key, "string") });
 
-    if (not request_json[Worker::surname_key].IsString())
+    if (not request[Worker::surname_key].IsString())
         throw server::handlers::ClientError(server::handlers::ExternalBody {
             fmt::format("Unsupported type for {} (should be: {})", Worker::surname_key, "string") });
 
-    if (not request_json[Worker::table_key].IsNumber())
+    if (not request[Worker::table_key].IsNumber())
         throw server::handlers::ClientError(server::handlers::ExternalBody {
             fmt::format("Unsupported type for {} (should be: {})", Worker::table_key, "number") });
 
-    // if (not request_json.HasMember(Worker::patronymic_key))
-    //     if (not request_json[Worker::patronymic_key].IsString() and not request_json[Worker::patronymic_key].IsMissing())
-    //         throw server::handlers::ClientError(server::handlers::ExternalBody {
-    //             fmt::format("Unsupported type for {} (should be: {})", Worker::patronymic_key, "string") });
+    if (not request.HasMember(Worker::patronymic_key))
+        if (not request[Worker::patronymic_key].IsString() and not request[Worker::patronymic_key].IsMissing())
+            throw server::handlers::ClientError(server::handlers::ExternalBody {
+                fmt::format("Unsupported type for {} (should be: {})", Worker::patronymic_key, "string") });
 
-    return Worker { request_json[Worker::table_key].As<std::size_t>(),
-        request_json[Worker::name_key].As<std::string>(),
-        request_json[Worker::surname_key].As<std::string>(),
-        "" };
+    return Worker { static_cast<std::size_t>(request[Worker::table_key].As<int>()),
+        request[Worker::name_key].As<std::string>(),
+        request[Worker::surname_key].As<std::string>(),
+        [request]() -> std::string {
+            if (not request.HasMember(Worker::patronymic_key)) {
+                return "";
+            }
+            return request[Worker::patronymic_key].As<std::string>();
+        }() };
 }
 
-bool UserService::validate(const Value& request_json) const noexcept
+bool UserService::validate(const JsonData& request) const noexcept
 {
-    if (not request_json.HasMember(Worker::table_key) or not request_json.HasMember(Worker::name_key) or not request_json.HasMember(Worker::surname_key))
+    if (not request.HasMember(Worker::table_key) or not request.HasMember(Worker::name_key) or not request.HasMember(Worker::surname_key))
         return false;
-    if (not request_json[Worker::table_key].IsInt())
+    if (not request[Worker::table_key].IsInt())
         return false;
-    if (not request_json[Worker::name_key].IsString())
+    if (not request[Worker::name_key].IsString())
         return false;
-    if (not request_json[Worker::surname_key].IsString())
+    if (not request[Worker::surname_key].IsString())
         return false;
 
-    if (request_json.HasMember(Worker::patronymic_key)) {
-        if (not request_json[Worker::patronymic_key].IsString()) {
+    if (request.HasMember(Worker::patronymic_key)) {
+        if (not request[Worker::patronymic_key].IsString()) {
             return false;
         }
     }
     return true;
+}
+UserService::JsonData UserService::find(std::size_t table_id) const
+{
+    auto trx = db()->Begin("finding_user_by_table_id", storages::postgres::ClusterHostType::kMaster, {});
+    auto res = trx.Execute(worktime_postgres_service::sql::kFindUserByTableId, static_cast<int>(table_id));
+    if (res.RowsAffected()) {
+        auto data = ValueBuilder {};
+        return data.ExtractValue();
+    }
+
+    throw server::handlers::ClientError(server::handlers::ExternalBody { fmt::format("No user with table_id: {}", table_id) });
 }

@@ -10,6 +10,8 @@
 
 namespace services::control_role::details {
 class UserService {
+    using JsonData = userver::formats::json::Value;
+
 public:
     explicit UserService(const userver::components::ComponentContext& context, std::string_view db_service_name);
     UserService(const UserService&) = delete;
@@ -21,11 +23,13 @@ protected:
         return p_db;
     }
 
+    JsonData find(std::size_t table_id) const;
+
 protected:
     using IDType = std::size_t;
 
-    Worker extract(const userver::formats::json::Value& request_json) const;
-    bool validate(const userver::formats::json::Value& request_json) const noexcept;
+    Worker extract(const JsonData& request) const;
+    bool validate(const JsonData& request) const noexcept;
 
 protected:
     userver::storages::postgres::ClusterPtr p_db = nullptr;
