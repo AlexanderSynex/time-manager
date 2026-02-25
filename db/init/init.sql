@@ -3,7 +3,7 @@ CREATE TABLE users (
     table_id INT UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     surname VARCHAR(255) NOT NULL,
-    patronomic VARCHAR(255)
+    patronymic VARCHAR(255)
 );
 
 CREATE TABLE worktime (

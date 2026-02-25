@@ -35,10 +35,10 @@ Worker UserService::extract(const Value& request_json) const
         throw server::handlers::ClientError(server::handlers::ExternalBody {
             fmt::format("Unsupported type for {} (should be: {})", Worker::table_key, "number") });
 
-    // if (not request_json.HasMember(Worker::patronomic_key))
-    //     if (not request_json[Worker::patronomic_key].IsString() and not request_json[Worker::patronomic_key].IsMissing())
+    // if (not request_json.HasMember(Worker::patronymic_key))
+    //     if (not request_json[Worker::patronymic_key].IsString() and not request_json[Worker::patronymic_key].IsMissing())
     //         throw server::handlers::ClientError(server::handlers::ExternalBody {
-    //             fmt::format("Unsupported type for {} (should be: {})", Worker::patronomic_key, "string") });
+    //             fmt::format("Unsupported type for {} (should be: {})", Worker::patronymic_key, "string") });
 
     return Worker { request_json[Worker::table_key].As<std::size_t>(),
         request_json[Worker::name_key].As<std::string>(),
@@ -57,8 +57,8 @@ bool UserService::validate(const Value& request_json) const noexcept
     if (not request_json[Worker::surname_key].IsString())
         return false;
 
-    if (request_json.HasMember(Worker::patronomic_key)) {
-        if (not request_json[Worker::patronomic_key].IsString()) {
+    if (request_json.HasMember(Worker::patronymic_key)) {
+        if (not request_json[Worker::patronymic_key].IsString()) {
             return false;
         }
     }
