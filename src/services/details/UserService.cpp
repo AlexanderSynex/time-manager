@@ -71,12 +71,19 @@ bool UserService::validate(const JsonData& request) const noexcept
     }
     return true;
 }
+
 UserService::JsonData UserService::find(std::size_t table_id) const
 {
     auto trx = db()->Begin("finding_user_by_table_id", storages::postgres::ClusterHostType::kMaster, {});
     auto res = trx.Execute(worktime_postgres_service::sql::kFindUserByTableId, static_cast<int>(table_id));
     if (res.RowsAffected()) {
+        auto user = res.Front();
+        auto userData = ValueBuilder {};
+        userData[std::string { Worker::name_key }] = user[std::string { Worker::name_key }].As<std::string>();
+        userData[std::string { Worker::surname_key }] = user[std::string { Worker::surname_key }].As<std::string>();
+        userData[std::string { Worker::patronymic_key }] = user[std::string { Worker::patronymic_key }].As<std::string>();
         auto data = ValueBuilder {};
+        data["data"] = userData.ExtractValue();
         return data.ExtractValue();
     }
 

@@ -52,6 +52,6 @@ Value AdministrationService::processWorker(Worker&& user, const HttpRequest& req
         return this->find(user.table_id);
     }
     trx.Rollback();
-    request.GetHttpResponse().SetStatus(userver::v2_15::http::kBadRequest);
-    return this->find(user.table_id);
+    throw server::handlers::ClientError(server::handlers::ExternalBody {
+        fmt::format("Unprocessable worker: {} {} {} {}", user.table_id, user.name, user.surname, user.patronymic) });
 }
