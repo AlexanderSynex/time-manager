@@ -14,35 +14,41 @@ using namespace userver;
 using namespace userver::server;
 using namespace services::control_role;
 
-WorktimeService::WorktimeService(
-    const components::ComponentConfig& config,
-    const components::ComponentContext& component_context)
-    : details::UserService(component_context, "db")
-    , handlers::HttpHandlerJsonBase(config, component_context)
+WorktimeService::WorktimeService (
+    const components::ComponentConfig &config,
+    const components::ComponentContext &component_context)
+    : details::UserService (component_context, "db"),
+      handlers::HttpHandlerJsonBase (config, component_context)
 {
 }
 handlers::HttpHandlerJsonBase::Value
-WorktimeService::HandleRequestJsonThrow(const HttpRequest& request, const Value& request_json, RequestContext&) const
+WorktimeService::HandleRequestJsonThrow (const HttpRequest &request,
+                                         const Value &request_json,
+                                         RequestContext &) const
 {
-    switch (request.GetMethod()) {
+  switch (request.GetMethod ())
+    {
     case userver::server::http::HttpMethod::kPost:
-        return request_json;
+      return request_json;
     case userver::server::http::HttpMethod::kPut:
-        return request_json;
+      return request_json;
     case userver::server::http::HttpMethod::kGet:
-        return request_json;
+      return request_json;
     default:
-        throw server::handlers::ClientError(server::handlers::ExternalBody {
-            fmt::format("Unsupported method {}", request.GetMethod()) });
+      throw server::handlers::ClientError (server::handlers::ExternalBody{
+          fmt::format ("Unsupported method {}", request.GetMethod ()) });
     }
-    return request_json;
+  return request_json;
 }
-server::handlers::HttpHandlerJsonBase::Value WorktimeService::workerArrived(Worker&& worker)
+server::handlers::HttpHandlerJsonBase::Value
+WorktimeService::workerArrived (Worker &&worker)
 {
 
-    return formats::json::ValueBuilder {}.ExtractValue();
+  return formats::json::ValueBuilder{}.ExtractValue ();
 }
-server::handlers::HttpHandlerJsonBase::Value WorktimeService::workerDeparted(Worker&&)
+
+server::handlers::HttpHandlerJsonBase::Value
+WorktimeService::workerDeparted (Worker &&)
 {
-    return formats::json::ValueBuilder {}.ExtractValue();
+  return formats::json::ValueBuilder{}.ExtractValue ();
 }

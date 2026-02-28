@@ -1,4 +1,0 @@
-SELECT name, surname, patronymic FROM users 
-WHERE table_id=$1 
-ORDER BY ID DESC 
-LIMIT 1;

@@ -34,6 +34,7 @@ add_subdirectory(third-party)
 find_package(userver COMPONENTS core postgresql REQUIRED)
 
 set(SOURCES src/main.cpp 
+            src/info/Worker.cpp
             src/services/AdministrationService.cpp
             src/services/WorktimeService.cpp
             src/services/details/UserService.cpp)

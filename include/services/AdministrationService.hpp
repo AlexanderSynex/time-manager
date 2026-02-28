@@ -1,8 +1,10 @@
 #pragma once
 
-#include "info/worker.hpp"
+#include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
 
+#include <optional>
+#include <string_view>
 #include <userver/clients/dns/component.hpp>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
@@ -14,27 +16,32 @@
 #include <userver/storages/postgres/postgres_fwd.hpp>
 #include <userver/testsuite/testsuite_support.hpp>
 
-namespace services::control_role {
+namespace services::control_role
+{
 
 ///@brief Служебный сервис для управления данными о пользователях
 class AdministrationService final
     : public details::UserService,
-      public userver::server::handlers::HttpHandlerJsonBase {
+      public userver::server::handlers::HttpHandlerJsonBase
+{
 public:
-    static constexpr std::string_view kName = "administration-service";
+  static constexpr std::string_view kName = "administration-service";
 
-    explicit AdministrationService(const userver::components::ComponentConfig& config,
-        const userver::components::ComponentContext& component_context);
+  explicit AdministrationService (
+      const userver::components::ComponentConfig &config,
+      const userver::components::ComponentContext &component_context);
 
-    Value HandleRequestJsonThrow(const HttpRequest& request,
-        const Value& request_json,
-        RequestContext& context) const override;
-
-private:
-    Value processWorker(Worker&& target, const HttpRequest& request) const;
+  Value HandleRequestJsonThrow (const HttpRequest &request,
+                                const Value &request_json,
+                                RequestContext &context) const override;
 
 private:
-    userver::storages::postgres::ClusterPtr p_db = nullptr;
+  std::optional<Value> modifyUserInfo (const Value &request_json) const;
+  std::optional<Value> modifyUserInfo (Worker &&user,
+                                       Worker::Info &&info) const;
+
+private:
+  userver::storages::postgres::ClusterPtr p_db = nullptr;
 };
 
 } // namespace services::control_role
