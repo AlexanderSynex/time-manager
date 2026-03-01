@@ -3,9 +3,15 @@
 #include "services/details/UserService.hpp"
 
 #include <fmt/format.h>
+#include <functional>
+#include <map>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/exception.hpp>
+#include <userver/formats/json/value.hpp>
 #include <userver/http/status_code.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/server/handlers/exceptions.hpp>
@@ -34,17 +40,45 @@ AdministrationService::AdministrationService (
 Value
 AdministrationService::HandleRequestJsonThrow (const HttpRequest &request,
                                                const Value &request_json,
-                                               RequestContext &) const
+                                               RequestContext &context) const
+{
+  std::string target = request.GetPathArg ("target");
+  auto handlers = std::unordered_map<std::string, std::function<Value ()>>{
+    { userTarget,
+      [&request, &request_json, &context, this] () -> Value {
+        return HandleUserJsonThrow (request, request_json, context);
+      } },
+    { departmentTarget,
+      [&request, &request_json, &context, this] () -> Value {
+        return HandleDepartmentJsonThrow (request, request_json, context);
+      } }
+  };
+
+  auto handlerIt = handlers.find (target);
+  if (handlerIt == handlers.end ())
+    {
+      throw ClientError (
+          ExternalBody{ fmt::format ("Unprocessable target: {}", target) });
+    }
+
+  return handlerIt->second ();
+}
+
+Value
+AdministrationService::HandleUserJsonThrow (const HttpRequest &request,
+                                            const Value &request_json,
+                                            RequestContext &) const
 {
   switch (request.GetMethod ())
     {
     case server::http::HttpMethod::kPut:
       {
-        auto userInfo = modifyUserInfo (request_json);
-        if (userInfo.has_value ())
-          request.GetHttpResponse ().SetStatus (
-              userver::v2_15::http::kCreated);
-        return userInfo.value ();
+        if (modifyUserInfo (request_json))
+          {
+            request.GetHttpResponse ().SetStatus (
+                userver::v2_15::http::kCreated);
+          }
+        return getUserInfo (request_json);
       }
     default:
       throw server::handlers::ClientError (server::handlers::ExternalBody{
@@ -52,27 +86,56 @@ AdministrationService::HandleRequestJsonThrow (const HttpRequest &request,
     }
 }
 
-std::optional<Value>
+Value
+AdministrationService::HandleDepartmentJsonThrow (const HttpRequest &request,
+                                                  const Value &request_json,
+                                                  RequestContext &) const
+{
+  switch (request.GetMethod ())
+    {
+    case server::http::HttpMethod::kPut:
+      {
+        if (modifyUserInfo (request_json))
+          {
+            request.GetHttpResponse ().SetStatus (
+                userver::v2_15::http::kCreated);
+          }
+        return getUserInfo (request_json);
+      }
+    default:
+      throw server::handlers::ClientError (server::handlers::ExternalBody{
+          fmt::format ("Unsupported method {}", request.GetMethod ()) });
+    }
+}
+
+bool
 AdministrationService::modifyUserInfo (const Value &request_json) const
 {
-  return modifyUserInfo (getWorker (request_json),
+  auto user = getWorker (request_json);
+
+  if (not user.has_value ())
+    {
+      throw ClientError (ExternalBody{ "No table_id provided" });
+    }
+
+  return modifyUserInfo (std::move (user.value ()),
                          Worker::extractInfo (request_json));
 }
 
-std::optional<Value>
+bool
 AdministrationService::modifyUserInfo (Worker &&user,
                                        Worker::Info &&info) const
 {
   auto trx = db ()->Begin ("managing_user_transaction",
                            storages::postgres::ClusterHostType::kMaster, {});
   auto res = trx.Execute (worktime_postgres_service::sql::kUpdateUser,
-                          static_cast<int> (info.table_id), info.name,
-                          info.surname, info.patronymic);
+                          static_cast<int> (user), info.name, info.surname,
+                          info.patronymic);
   if (res.RowsAffected ())
     {
       trx.Commit ();
-      return getUserInfo (std::move (user));
+      return true;
     }
   trx.Rollback ();
-  return {};
+  return false;
 }

@@ -24,6 +24,9 @@ class AdministrationService final
     : public details::UserService,
       public userver::server::handlers::HttpHandlerJsonBase
 {
+  static constexpr auto userTarget = "user";
+  static constexpr auto departmentTarget = "department";
+
 public:
   static constexpr std::string_view kName = "administration-service";
 
@@ -36,9 +39,16 @@ public:
                                 RequestContext &context) const override;
 
 private:
-  std::optional<Value> modifyUserInfo (const Value &request_json) const;
-  std::optional<Value> modifyUserInfo (Worker &&user,
-                                       Worker::Info &&info) const;
+  Value HandleUserJsonThrow (const HttpRequest &request,
+                             const Value &request_json,
+                             RequestContext &context) const;
+
+  Value HandleDepartmentJsonThrow (const HttpRequest &request,
+                                   const Value &request_json,
+                                   RequestContext &context) const;
+
+  bool modifyUserInfo (const Value &request_json) const;
+  bool modifyUserInfo (Worker &&user, Worker::Info &&info) const;
 
 private:
   userver::storages::postgres::ClusterPtr p_db = nullptr;

@@ -35,31 +35,15 @@ UserService::UserService (const components::ComponentContext &context,
 }
 
 /// @return Дискриптор пользователя по json-запросу
-Worker
+std::optional<Worker>
 UserService::getWorker (const JsonData &request) const
 {
-  if (not isValid (request))
-    throw server::handlers::ClientError (server::handlers::ExternalBody{
-        fmt::format ("Invlaid worker data provided") });
-  return getWorker (
-      static_cast<std::size_t> (request[Worker::Info::table_key].As<int> ()));
-}
-
-/// @return Дискриптор пользователя по table_id
-Worker
-UserService::getWorker (std::size_t table_id) const
-{
-  auto trx = db ()->Begin ("finding_user_info_by_id",
-                           storages::postgres::ClusterHostType::kMaster, {});
-  auto res = trx.Execute (worktime_postgres_service::sql::kFindUserIdByTableId,
-                          static_cast<int> (table_id));
-  if (res.RowsAffected ())
+  if (not request[Worker::Info::table_key].IsInt ())
     {
-      return Worker{ static_cast<std::size_t> (
-          res.Front ()["id"].As<int> ()) };
+      return {};
     }
-  throw server::handlers::ClientError (server::handlers::ExternalBody{
-      fmt::format ("No user with provided table_id: {}", table_id) });
+  return Worker{ static_cast<std::size_t> (
+      request[Worker::Info::table_key].As<int> ()) };
 }
 
 /// @brief Формируем запрос с данными пользователя по дискриптору
@@ -75,9 +59,6 @@ UserService::getUserInfo (Worker &&user) const
     {
       auto user = res.Front ();
       auto userData = ValueBuilder{};
-      userData[std::string{ Worker::Info::table_key }]
-          = user[std::string{ Worker::Info::table_key }].As<int> ();
-      ;
       userData[std::string{ Worker::Info::name_key }]
           = user[std::string{ Worker::Info::name_key }].As<std::string> ();
       userData[std::string{ Worker::Info::surname_key }]
@@ -96,5 +77,11 @@ UserService::getUserInfo (Worker &&user) const
 UserService::JsonData
 UserService::getUserInfo (const JsonData &request) const
 {
-  return getUserInfo (getWorker (request));
+  auto worker = getWorker (request);
+  if (not worker.has_value ())
+    {
+      throw server::handlers::ClientError (
+          server::handlers::ExternalBody{ fmt::format ("No user found") });
+    }
+  return getUserInfo (std::move (worker.value ()));
 }

@@ -1,2 +1,2 @@
-SELECT table_id, name, surname, patronymic FROM users 
-WHERE id=$1;
+SELECT name, surname, patronymic FROM users 
+WHERE table_id=$1;

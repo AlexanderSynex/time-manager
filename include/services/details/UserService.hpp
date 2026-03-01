@@ -2,6 +2,7 @@
 
 #include "info/Worker.hpp"
 #include <cstddef>
+#include <optional>
 #include <string_view>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/value.hpp>
@@ -33,8 +34,7 @@ protected:
 protected:
   using IDType = std::size_t;
 
-  Worker getWorker (const JsonData &request) const;
-  Worker getWorker (std::size_t table_id) const;
+  std::optional<Worker> getWorker (const JsonData &request) const;
   static bool isValid (const JsonData &request) noexcept;
 
 protected:

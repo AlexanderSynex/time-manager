@@ -63,8 +63,6 @@ Worker::extractInfo (const userver::formats::json::Value &request_json)
     }
 
   return Worker::Info{
-    static_cast<std::size_t> (
-        request_json[Worker::Info::table_key].As<int> ()),
     request_json[Worker::Info::name_key].As<std::string> (),
     request_json[Worker::Info::surname_key].As<std::string> (),
     request_json[Worker::Info::patronymic_key].As<std::string> ({})
