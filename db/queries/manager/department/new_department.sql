@@ -1,2 +1,7 @@
-INSERT INTO department(name, leader_id)
-VALUES($1, (SELECT id FROM users WHERE table_id = $2));
+INSERT INTO department (name, leader_id)
+VALUES ($1, $2)
+ON CONFLICT (name)
+DO UPDATE SET
+    name = EXCLUDED.name,
+    leader_id = EXCLUDED.leader_id
+RETURNING id;

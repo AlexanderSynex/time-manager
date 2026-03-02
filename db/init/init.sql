@@ -1,15 +1,15 @@
 
 -- Таблицы данных
 CREATE TABLE users (
-    table_id INT PRIMARY KEY UNIQUE NOT NULL CHECK (table_id > 0),
+    table_id BIGINT PRIMARY KEY UNIQUE NOT NULL CHECK (table_id > 0),
     name VARCHAR(255) NOT NULL CHECK (name != ''),
     surname VARCHAR(255) NOT NULL CHECK (surname != ''),
     patronymic VARCHAR(255)
 );
 
 CREATE TABLE department (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL CHECK (name != ''),
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL CHECK (name != ''),
     leader_id INT NOT NULL,
     internal_id INT UNIQUE CHECK (internal_id > 0),
     FOREIGN KEY (leader_id) REFERENCES users(table_id)
@@ -18,10 +18,10 @@ CREATE TABLE department (
 -- Рабочее время
 CREATE TABLE worktime (
     user_id INT NOT NUlL,
-    FOREIGN KEY (user_id) REFERENCES users(table_id),
     day DATE NOT NULL DEFAULT CURRENT_DATE,
     arrived TIMESTAMPTZ NOT NULL,
-    departed TIMESTAMPTZ
+    departed TIMESTAMPTZ,
+    FOREIGN KEY (user_id) REFERENCES users(table_id),
     CONSTRAINT time_check CHECK (departed > arrived)
 );
 
@@ -35,7 +35,7 @@ CREATE TABLE department_workers (
 );
 
 CREATE TABLE department_relations (
-    id SERIAL PRIMARY KEY,
+    id GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     department_id INT NOT NULL,
     parent_department_id INT NOT NULL,
     FOREIGN KEY (department_id) REFERENCES department(id),
