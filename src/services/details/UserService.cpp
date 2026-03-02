@@ -1,4 +1,5 @@
 #include "services/details/UserService.hpp"
+#include "info/Department.hpp"
 #include "info/Worker.hpp"
 
 #include <cstddef>
@@ -18,7 +19,7 @@ using namespace userver::formats::json;
 using namespace services::control_role::details;
 
 bool
-UserService::isValid (const JsonData &request) noexcept
+UserService::isValidUser (const JsonData &request) noexcept
 {
   if (not request.HasMember (Worker::Info::table_key))
     return false;
@@ -84,4 +85,55 @@ UserService::getUserInfo (const JsonData &request) const
           server::handlers::ExternalBody{ fmt::format ("No user found") });
     }
   return getUserInfo (std::move (worker.value ()));
+}
+
+std::optional<company::Department>
+UserService::getDepartment (const JsonData &request) const
+{
+  if (not request[company::Department::Info::id_key].IsInt ())
+    {
+      return {};
+    }
+  return company::Department{ static_cast<std::size_t> (
+      request[company::Department::Info::id_key].As<int> ()) };
+}
+
+UserService::JsonData
+UserService::getDepartmentInfo (const JsonData &request) const
+{
+  auto department = getDepartment (request);
+  if (not department.has_value ())
+    {
+      throw server::handlers::ClientError (server::handlers::ExternalBody{
+          fmt::format ("No department found") });
+    }
+  return getDepartmentInfo (std::move (department.value ()));
+}
+
+UserService::JsonData
+UserService::getDepartmentInfo (company::Department &&depratment) const
+{
+  auto trx = db ()->Begin ("finding_user_info",
+                           storages::postgres::ClusterHostType::kMaster, {});
+  auto res
+      = trx.Execute (worktime_postgres_service::sql::kFindDepartmentInfoById,
+                     static_cast<int> (depratment));
+  if (res.RowsAffected ())
+    {
+      auto user = res.Front ();
+      auto userData = ValueBuilder{};
+      userData[std::string{ company::Department::Info::id_key }]
+          = static_cast<int> (depratment.id);
+      userData[std::string{ company::Department::Info::name_key }]
+          = user[std::string{ company::Department::Info::name_key }]
+                .As<std::string> ();
+      userData[std::string{ company::Department::Info::leader_key }]
+          = user[std::string{ company::Department::Info::leader_key }]
+                .As<int> ();
+      auto data = ValueBuilder{};
+      data["data"] = userData.ExtractValue ();
+      return data.ExtractValue ();
+    }
+  throw server::handlers::InternalServerError{ server::handlers::ExternalBody{
+      "Unprocessable error while getting department info" } };
 }

@@ -1,4 +1,5 @@
 #include "services/AdministrationService.hpp"
+#include "info/Department.hpp"
 #include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
 
@@ -22,6 +23,9 @@
 #include <userver/server/http/http_method.hpp>
 #include <userver/storages/postgres/cluster.hpp>
 
+#include <userver/storages/postgres/io/row_types.hpp>
+#include <userver/storages/postgres/null.hpp>
+#include <userver/storages/postgres/row.hpp>
 #include <worktime_postgres_service/sql_queries.hpp>
 
 using namespace userver;
@@ -95,17 +99,75 @@ AdministrationService::HandleDepartmentJsonThrow (const HttpRequest &request,
     {
     case server::http::HttpMethod::kPut:
       {
-        if (modifyUserInfo (request_json))
+        auto department = getDepartment (request_json);
+        if (not department.has_value ())
           {
+            auto departmentId = insertNewDepartment (request_json);
+            if (not departmentId.has_value ())
+              {
+                throw server::handlers::ClientError (
+                    server::handlers::ExternalBody{
+                        "There is a problem creating new department" });
+              }
             request.GetHttpResponse ().SetStatus (
                 userver::v2_15::http::kCreated);
+            return getDepartmentInfo (company::Department{
+                static_cast<std::size_t> (departmentId.value ()) });
           }
-        return getUserInfo (request_json);
+        else
+          {
+            modifyDepartmentInfo (std::move (department.value ()),
+                                  request_json);
+          }
+        return getDepartmentInfo (request_json);
       }
     default:
       throw server::handlers::ClientError (server::handlers::ExternalBody{
           fmt::format ("Unsupported method {}", request.GetMethod ()) });
     }
+}
+
+std::optional<int>
+AdministrationService::insertNewDepartment (const Value &request_json) const
+{
+  auto data = company::Department::extractInfo (request_json);
+  auto trx = db ()->Begin ("creating_department_transaction",
+                           storages::postgres::ClusterHostType::kMaster, {});
+  auto res = trx.Execute (worktime_postgres_service::sql::kNewDepartment,
+                          data.name, static_cast<int> (data.leader_id));
+  if (res.RowsAffected ())
+    {
+      trx.Commit ();
+      return res.AsSingleRow<int> ();
+    }
+  trx.Rollback ();
+  return {};
+}
+
+bool
+AdministrationService::modifyDepartmentInfo (company::Department &&department,
+                                             const Value &request_json) const
+{
+  return modifyDepartmentInfo (
+      std::move (department), company::Department::extractInfo (request_json));
+}
+
+bool
+AdministrationService::modifyDepartmentInfo (
+    company::Department &&department, company::Department::Info &&info) const
+{
+  auto trx = db ()->Begin ("managing_department_transaction",
+                           storages::postgres::ClusterHostType::kMaster, {});
+  auto res = trx.Execute (worktime_postgres_service::sql::kUpdateDepartment,
+                          static_cast<int> (department), info.name,
+                          static_cast<int> (info.leader_id));
+  if (res.RowsAffected ())
+    {
+      trx.Commit ();
+      return true;
+    }
+  trx.Rollback ();
+  return false;
 }
 
 bool
@@ -115,7 +177,7 @@ AdministrationService::modifyUserInfo (const Value &request_json) const
 
   if (not user.has_value ())
     {
-      throw ClientError (ExternalBody{ "No table_id provided" });
+      throw ClientError (ExternalBody{ "No table_id was provided" });
     }
 
   return modifyUserInfo (std::move (user.value ()),

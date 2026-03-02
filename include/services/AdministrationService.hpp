@@ -1,5 +1,6 @@
 #pragma once
 
+#include "info/Department.hpp"
 #include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
 
@@ -46,6 +47,12 @@ private:
   Value HandleDepartmentJsonThrow (const HttpRequest &request,
                                    const Value &request_json,
                                    RequestContext &context) const;
+
+  std::optional<int> insertNewDepartment (const Value &request_json) const;
+  bool modifyDepartmentInfo (company::Department &&department,
+                             const Value &request_json) const;
+  bool modifyDepartmentInfo (company::Department &&department,
+                             company::Department::Info &&info) const;
 
   bool modifyUserInfo (const Value &request_json) const;
   bool modifyUserInfo (Worker &&user, Worker::Info &&info) const;
