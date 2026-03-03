@@ -1,3 +1,4 @@
-INSERT INTO worktime (user_id, arrived)
-VALUES($1, CURRENT_TIMESTAMP)
-ON CONFLICT DO NOTHING;
+INSERT INTO worktime (user_id, day, arrived)
+VALUES($1, CURRENT_DATE, CURRENT_TIMESTAMP)
+ON CONFLICT (user_id, day) DO NOTHING
+RETURNING arrived;

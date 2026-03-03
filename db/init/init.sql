@@ -22,7 +22,8 @@ CREATE TABLE worktime (
     arrived TIMESTAMPTZ NOT NULL,
     departed TIMESTAMPTZ,
     FOREIGN KEY (user_id) REFERENCES users(table_id),
-    CONSTRAINT time_check CHECK (departed > arrived)
+    CONSTRAINT time_check CHECK (departed > arrived),
+    CONSTRAINT unique_worker_date UNIQUE (user_id, day)
 );
 
 -- Таблицы отношений

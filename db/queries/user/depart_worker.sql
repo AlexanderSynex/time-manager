@@ -1,3 +1,6 @@
 UPDATE worktime 
-SET departed=CURRENT_TIMESTAMP
-WHERE user=$1;
+SET departed=CURRENT_TIMESTAMP,
+    day=CURRENT_DATE
+WHERE user_id=$1
+ON CONFLICT (day) DO NOTHING
+RETURNING departed;
