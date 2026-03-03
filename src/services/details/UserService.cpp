@@ -56,23 +56,26 @@ UserService::getUserInfo (Worker &&user) const
                            storages::postgres::ClusterHostType::kMaster, {});
   auto res = trx.Execute (worktime_postgres_service::sql::kFindUserInfoById,
                           static_cast<int> (user));
-  if (res.RowsAffected ())
+  if (not res.RowsAffected ())
     {
-      auto user = res.Front ();
-      auto userData = ValueBuilder{};
-      userData[std::string{ Worker::Info::name_key }]
-          = user[std::string{ Worker::Info::name_key }].As<std::string> ();
-      userData[std::string{ Worker::Info::surname_key }]
-          = user[std::string{ Worker::Info::surname_key }].As<std::string> ();
-      userData[std::string{ Worker::Info::patronymic_key }]
-          = user[std::string{ Worker::Info::patronymic_key }]
-                .As<std::string> ();
-      auto data = ValueBuilder{};
-      data["data"] = userData.ExtractValue ();
-      return data.ExtractValue ();
+
+      throw server::handlers::InternalServerError{
+        server::handlers::ExternalBody{
+            "Unprocessable error while getting user info" }
+      };
     }
-  throw server::handlers::InternalServerError{ server::handlers::ExternalBody{
-      "Unprocessable error while getting user info" } };
+  auto userInfo = res.Front ();
+  auto userData = ValueBuilder{};
+  userData[std::string{ Worker::Info::name_key }]
+      = userInfo[std::string{ Worker::Info::name_key }].As<std::string> ();
+  userData[std::string{ Worker::Info::surname_key }]
+      = userInfo[std::string{ Worker::Info::surname_key }].As<std::string> ();
+  userData[std::string{ Worker::Info::patronymic_key }]
+      = userInfo[std::string{ Worker::Info::patronymic_key }]
+            .As<std::string> ();
+  auto data = ValueBuilder{};
+  data["data"] = userData.ExtractValue ();
+  return data.ExtractValue ();
 }
 
 UserService::JsonData
@@ -118,22 +121,23 @@ UserService::getDepartmentInfo (company::Department &&depratment) const
   auto res
       = trx.Execute (worktime_postgres_service::sql::kFindDepartmentInfoById,
                      static_cast<int> (depratment));
-  if (res.RowsAffected ())
+  if (not res.RowsAffected ())
     {
-      auto user = res.Front ();
-      auto userData = ValueBuilder{};
-      userData[std::string{ company::Department::Info::id_key }]
-          = static_cast<int> (depratment.id);
-      userData[std::string{ company::Department::Info::name_key }]
-          = user[std::string{ company::Department::Info::name_key }]
-                .As<std::string> ();
-      userData[std::string{ company::Department::Info::leader_key }]
-          = user[std::string{ company::Department::Info::leader_key }]
-                .As<int> ();
-      auto data = ValueBuilder{};
-      data["data"] = userData.ExtractValue ();
-      return data.ExtractValue ();
+      throw server::handlers::InternalServerError{
+        server::handlers::ExternalBody{
+            "Unprocessable error while getting department info" }
+      };
     }
-  throw server::handlers::InternalServerError{ server::handlers::ExternalBody{
-      "Unprocessable error while getting department info" } };
+  auto user = res.Front ();
+  auto userData = ValueBuilder{};
+  userData[std::string{ company::Department::Info::id_key }]
+      = static_cast<int> (depratment.id);
+  userData[std::string{ company::Department::Info::name_key }]
+      = user[std::string{ company::Department::Info::name_key }]
+            .As<std::string> ();
+  userData[std::string{ company::Department::Info::leader_key }]
+      = user[std::string{ company::Department::Info::leader_key }].As<int> ();
+  auto data = ValueBuilder{};
+  data["data"] = userData.ExtractValue ();
+  return data.ExtractValue ();
 }

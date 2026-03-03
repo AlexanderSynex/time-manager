@@ -135,13 +135,14 @@ AdministrationService::insertNewDepartment (const Value &request_json) const
                            storages::postgres::ClusterHostType::kMaster, {});
   auto res = trx.Execute (worktime_postgres_service::sql::kNewDepartment,
                           data.name, static_cast<int> (data.leader_id));
-  if (res.RowsAffected ())
+  if (not res.RowsAffected ())
     {
-      trx.Commit ();
-      return res.AsSingleRow<int> ();
+      trx.Rollback ();
+      return {};
     }
-  trx.Rollback ();
-  return {};
+
+  trx.Commit ();
+  return res.AsSingleRow<int> ();
 }
 
 bool
@@ -161,13 +162,14 @@ AdministrationService::modifyDepartmentInfo (
   auto res = trx.Execute (worktime_postgres_service::sql::kUpdateDepartment,
                           static_cast<int> (department), info.name,
                           static_cast<int> (info.leader_id));
-  if (res.RowsAffected ())
+  if (not res.RowsAffected ())
     {
-      trx.Commit ();
-      return true;
+
+      trx.Rollback ();
+      return false;
     }
-  trx.Rollback ();
-  return false;
+  trx.Commit ();
+  return true;
 }
 
 bool

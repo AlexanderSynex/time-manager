@@ -2,8 +2,10 @@
 
 #include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
+#include <optional>
 #include <userver/clients/dns/component.hpp>
 #include <userver/components/component_list.hpp>
+#include <userver/formats/json/value_builder.hpp>
 #include <userver/server/handlers/http_handler_json_base.hpp>
 #include <userver/storages/postgres/cluster.hpp>
 #include <userver/storages/postgres/component.hpp>
@@ -31,9 +33,35 @@ public:
                                 const Value &request_json,
                                 RequestContext &) const override;
 
+  Value HandleRequestArriveJsonThrow (const HttpRequest &request,
+                                      const Value &request_json,
+                                      RequestContext &) const;
+
+  Value HandleRequestLeaveJsonThrow (const HttpRequest &request,
+                                     const Value &request_json,
+                                     RequestContext &) const;
+
 private:
-  Value workerArrived (Worker &&info);
-  Value workerDeparted (Worker &&info);
+  std::optional<userver::storages::postgres::TimePointTz>
+  getArrivalTime (Worker &&user,
+                  std::chrono::system_clock::time_point &&when) const;
+
+  std::optional<userver::storages::postgres::TimePointTz>
+  getLeftTime (Worker &&user,
+               std::chrono::system_clock::time_point &&when) const;
+
+  std::optional<userver::storages::postgres::TimePointTz>
+  workerArrived (Worker &&info) const;
+  std::optional<userver::storages::postgres::TimePointTz>
+  workerLeaved (Worker &&info) const;
+
+  Value
+  prepareMessage (userver::storages::postgres::TimePointTz &&tp) const
+  {
+    auto b = userver::formats::json::ValueBuilder{};
+    b["when"] = tp;
+    return b.ExtractValue ();
+  }
 
 private:
   userver::storages::postgres::ClusterPtr p_db = nullptr;
