@@ -12,6 +12,7 @@
 
 #include <string_view>
 #include <userver/storages/postgres/postgres_fwd.hpp>
+#include <userver/storages/query.hpp>
 #include <userver/testsuite/testsuite_support.hpp>
 
 namespace services::control_role
@@ -43,9 +44,12 @@ public:
 
 private:
   std::optional<userver::storages::postgres::TimePointTz>
+  getTimeFromDb (const userver::storages::Query &,
+                 std::string_view transactionName, Worker &&user,
+                 std::chrono::system_clock::time_point &&when) const;
+  std::optional<userver::storages::postgres::TimePointTz>
   getArrivalTime (Worker &&user,
                   std::chrono::system_clock::time_point &&when) const;
-
   std::optional<userver::storages::postgres::TimePointTz>
   getLeftTime (Worker &&user,
                std::chrono::system_clock::time_point &&when) const;
@@ -56,10 +60,15 @@ private:
   workerLeaved (Worker &&info) const;
 
   Value
-  prepareMessage (userver::storages::postgres::TimePointTz &&tp) const
+  prepareMessage (std::optional<userver::storages::postgres::TimePointTz> &&tp,
+                  bool isOnWork) const
   {
     auto b = userver::formats::json::ValueBuilder{};
-    b["when"] = tp;
+    if (tp.has_value ())
+      {
+        b["when"] = tp.value ();
+      }
+    b["on_work"] = isOnWork;
     return b.ExtractValue ();
   }
 

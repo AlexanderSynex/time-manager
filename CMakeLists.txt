@@ -23,7 +23,7 @@ set(PROJECT_VERSION
 )
 message(STATUS "${PROJECT_NAME} version: ${PROJECT_VERSION}")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -35,6 +35,7 @@ find_package(userver COMPONENTS core postgresql REQUIRED)
 
 set(SOURCES src/main.cpp 
             src/info/Worker.cpp
+            src/info/Department.cpp
             src/services/AdministrationService.cpp
             src/services/WorktimeService.cpp
             src/services/details/UserService.cpp)
