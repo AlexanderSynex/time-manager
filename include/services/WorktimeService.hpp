@@ -55,24 +55,15 @@ private:
                std::chrono::system_clock::time_point &&when) const;
 
   std::optional<userver::storages::postgres::TimePointTz>
-  workerArrived (Worker &&info) const;
+  workerArrived (Worker &&user) const;
   std::optional<userver::storages::postgres::TimePointTz>
-  workerLeaved (Worker &&info) const;
+  workerLeaved (Worker &&user) const;
+
+  bool isOnWork (Worker &&user,
+                 std::chrono::system_clock::time_point &&when) const;
 
   Value
   prepareMessage (std::optional<userver::storages::postgres::TimePointTz> &&tp,
-                  bool isOnWork) const
-  {
-    auto b = userver::formats::json::ValueBuilder{};
-    if (tp.has_value ())
-      {
-        b["when"] = tp.value ();
-      }
-    b["on_work"] = isOnWork;
-    return b.ExtractValue ();
-  }
-
-private:
-  userver::storages::postgres::ClusterPtr p_db = nullptr;
+                  bool isOnWork) const;
 };
 }

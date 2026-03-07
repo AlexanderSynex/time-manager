@@ -17,7 +17,6 @@ struct Worker
     std::string name, surname;
     std::optional<std::string> patronymic = {};
   };
-
   static Info extractInfo (const userver::formats::json::Value &);
   operator int () const { return static_cast<int> (id); }
   std::size_t id;
