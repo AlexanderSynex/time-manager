@@ -38,6 +38,7 @@ set(SOURCES src/main.cpp
             src/info/Department.cpp
             src/services/AdministrationService.cpp
             src/services/WorktimeService.cpp
+            src/services/AuthService.cpp
             src/services/details/UserService.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})

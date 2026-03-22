@@ -1,6 +1,5 @@
 #pragma once
 
-#include "info/Department.hpp"
 #include "info/Worker.hpp"
 #include <cstddef>
 #include <optional>
@@ -31,15 +30,13 @@ protected:
 
   JsonData getUserInfo (Worker &&user) const;
   JsonData getUserInfo (const JsonData &request) const;
-  JsonData getDepartmentInfo (company::Department &&department) const;
-  JsonData getDepartmentInfo (const JsonData &request) const;
+
+  bool userExists (const Worker &user) const;
 
 protected:
   using IDType = std::size_t;
 
   std::optional<Worker> getWorker (const JsonData &request) const;
-  std::optional<company::Department>
-  getDepartment (const JsonData &request) const;
   static bool isValidUser (const JsonData &request) noexcept;
 
 protected:

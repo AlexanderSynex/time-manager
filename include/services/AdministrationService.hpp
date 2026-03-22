@@ -1,15 +1,14 @@
 #pragma once
 
-#include "info/Department.hpp"
 #include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
 
-#include <optional>
 #include <string_view>
 #include <userver/clients/dns/component.hpp>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/components/component_list.hpp>
+#include <userver/formats/json/value.hpp>
 #include <userver/server/handlers/http_handler_json_base.hpp>
 
 #include <userver/storages/postgres/cluster.hpp>
@@ -25,9 +24,6 @@ class AdministrationService final
     : public details::UserService,
       public userver::server::handlers::HttpHandlerJsonBase
 {
-  static constexpr auto userTarget = "user";
-  static constexpr auto departmentTarget = "department";
-
 public:
   static constexpr std::string_view kName = "administration-service";
 
@@ -43,19 +39,11 @@ private:
   Value HandleUserJsonThrow (const HttpRequest &request,
                              const Value &request_json,
                              RequestContext &context) const;
-
-  Value HandleDepartmentJsonThrow (const HttpRequest &request,
-                                   const Value &request_json,
-                                   RequestContext &context) const;
-
-  std::optional<int> insertNewDepartment (const Value &request_json) const;
-  bool modifyDepartmentInfo (company::Department &&department,
-                             const Value &request_json) const;
-  bool modifyDepartmentInfo (company::Department &&department,
-                             company::Department::Info &&info) const;
-
-  bool modifyUserInfo (const Value &request_json) const;
-  bool modifyUserInfo (Worker &&user, Worker::Info &&info) const;
+  userver::formats::json::Value modifyUser (const Value &request_json) const;
+  void modifyUser (Worker &&user, Worker::Info &&info) const;
+  void modifyUserAccount (const Worker &user,
+                          std::string_view raw_password) const;
+  void modifyUserInfo (const Worker &user, Worker::Info &&info) const;
 
 private:
   userver::storages::postgres::ClusterPtr p_db = nullptr;

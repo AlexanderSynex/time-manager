@@ -1,5 +1,4 @@
 #include "services/details/UserService.hpp"
-#include "info/Department.hpp"
 #include "info/Worker.hpp"
 
 #include <cstddef>
@@ -21,9 +20,9 @@ using namespace services::control_role::details;
 bool
 UserService::isValidUser (const JsonData &request) noexcept
 {
-  if (not request.HasMember (Worker::Info::table_key))
+  if (not request.HasMember (Worker::table_key))
     return false;
-  if (not request[Worker::Info::table_key].IsInt ())
+  if (not request[Worker::table_key].IsInt ())
     return false;
   return true;
 }
@@ -39,12 +38,12 @@ UserService::UserService (const components::ComponentContext &context,
 std::optional<Worker>
 UserService::getWorker (const JsonData &request) const
 {
-  if (not request[Worker::Info::table_key].IsInt ())
+  if (not request[Worker::table_key].IsInt ())
     {
       return {};
     }
   return Worker{ static_cast<std::size_t> (
-      request[Worker::Info::table_key].As<int> ()) };
+      request[Worker::table_key].As<int> ()) };
 }
 
 /// @brief Формируем запрос с данными пользователя по дискриптору
@@ -58,7 +57,6 @@ UserService::getUserInfo (Worker &&user) const
                           static_cast<int> (user));
   if (not res.RowsAffected ())
     {
-
       throw server::handlers::InternalServerError{
         server::handlers::ExternalBody{
             "Unprocessable error while getting user info" }
@@ -90,54 +88,13 @@ UserService::getUserInfo (const JsonData &request) const
   return getUserInfo (std::move (worker.value ()));
 }
 
-std::optional<company::Department>
-UserService::getDepartment (const JsonData &request) const
+bool
+UserService::userExists (const Worker &user) const
 {
-  if (not request[company::Department::Info::id_key].IsInt ())
-    {
-      return {};
-    }
-  return company::Department{ static_cast<std::size_t> (
-      request[company::Department::Info::id_key].As<int> ()) };
-}
-
-UserService::JsonData
-UserService::getDepartmentInfo (const JsonData &request) const
-{
-  auto department = getDepartment (request);
-  if (not department.has_value ())
-    {
-      throw server::handlers::ClientError (server::handlers::ExternalBody{
-          fmt::format ("No department found") });
-    }
-  return getDepartmentInfo (std::move (department.value ()));
-}
-
-UserService::JsonData
-UserService::getDepartmentInfo (company::Department &&depratment) const
-{
-  auto trx = db ()->Begin ("finding_user_info",
+  auto trx = db ()->Begin ("check_user_exist_transaction",
                            storages::postgres::ClusterHostType::kMaster, {});
-  auto res
-      = trx.Execute (worktime_postgres_service::sql::kFindDepartmentInfoById,
-                     static_cast<int> (depratment));
-  if (not res.RowsAffected ())
-    {
-      throw server::handlers::InternalServerError{
-        server::handlers::ExternalBody{
-            "Unprocessable error while getting department info" }
-      };
-    }
-  auto user = res.Front ();
-  auto userData = ValueBuilder{};
-  userData[std::string{ company::Department::Info::id_key }]
-      = static_cast<int> (depratment.id);
-  userData[std::string{ company::Department::Info::name_key }]
-      = user[std::string{ company::Department::Info::name_key }]
-            .As<std::string> ();
-  userData[std::string{ company::Department::Info::leader_key }]
-      = user[std::string{ company::Department::Info::leader_key }].As<int> ();
-  auto data = ValueBuilder{};
-  data["data"] = userData.ExtractValue ();
-  return data.ExtractValue ();
+  auto res = trx.Execute (worktime_postgres_service::sql::kCheckUserExists,
+                          static_cast<int> (user));
+  trx.Rollback ();
+  return res.RowsAffected () > 0;
 }

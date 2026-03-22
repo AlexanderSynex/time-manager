@@ -1,14 +1,11 @@
 #include "services/AdministrationService.hpp"
-#include "info/Department.hpp"
 #include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
 
 #include <fmt/format.h>
 #include <functional>
-#include <map>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/exception.hpp>
@@ -18,11 +15,12 @@
 #include <userver/server/handlers/exceptions.hpp>
 #include <userver/storages/postgres/cluster_types.hpp>
 
+#include <userver/crypto/hash.hpp>
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/server/handlers/http_handler_json_base.hpp>
 #include <userver/server/http/http_method.hpp>
-#include <userver/storages/postgres/cluster.hpp>
 
+#include <userver/storages/postgres/cluster.hpp>
 #include <userver/storages/postgres/io/row_types.hpp>
 #include <userver/storages/postgres/null.hpp>
 #include <userver/storages/postgres/row.hpp>
@@ -46,15 +44,13 @@ AdministrationService::HandleRequestJsonThrow (const HttpRequest &request,
                                                const Value &request_json,
                                                RequestContext &context) const
 {
+  static constexpr auto userTarget = "user";
+
   std::string target = request.GetPathArg ("target");
   auto handlers = std::unordered_map<std::string, std::function<Value ()>>{
     { userTarget,
       [&request, &request_json, &context, this] () -> Value {
         return HandleUserJsonThrow (request, request_json, context);
-      } },
-    { departmentTarget,
-      [&request, &request_json, &context, this] () -> Value {
-        return HandleDepartmentJsonThrow (request, request_json, context);
       } }
   };
 
@@ -77,12 +73,7 @@ AdministrationService::HandleUserJsonThrow (const HttpRequest &request,
     {
     case server::http::HttpMethod::kPut:
       {
-        if (modifyUserInfo (request_json))
-          {
-            request.GetHttpResponse ().SetStatus (
-                userver::v2_15::http::kCreated);
-          }
-        return getUserInfo (request_json);
+        return modifyUser (request_json);
       }
     default:
       throw server::handlers::ClientError (server::handlers::ExternalBody{
@@ -90,90 +81,8 @@ AdministrationService::HandleUserJsonThrow (const HttpRequest &request,
     }
 }
 
-Value
-AdministrationService::HandleDepartmentJsonThrow (const HttpRequest &request,
-                                                  const Value &request_json,
-                                                  RequestContext &) const
-{
-  switch (request.GetMethod ())
-    {
-    case server::http::HttpMethod::kPut:
-      {
-        auto department = getDepartment (request_json);
-        if (not department.has_value ())
-          {
-            auto departmentId = insertNewDepartment (request_json);
-            if (not departmentId.has_value ())
-              {
-                throw server::handlers::ClientError (
-                    server::handlers::ExternalBody{
-                        "There is a problem creating new department" });
-              }
-            request.GetHttpResponse ().SetStatus (
-                userver::v2_15::http::kCreated);
-            return getDepartmentInfo (company::Department{
-                static_cast<std::size_t> (departmentId.value ()) });
-          }
-        else
-          {
-            modifyDepartmentInfo (std::move (department.value ()),
-                                  request_json);
-          }
-        return getDepartmentInfo (request_json);
-      }
-    default:
-      throw server::handlers::ClientError (server::handlers::ExternalBody{
-          fmt::format ("Unsupported method {}", request.GetMethod ()) });
-    }
-}
-
-std::optional<int>
-AdministrationService::insertNewDepartment (const Value &request_json) const
-{
-  auto data = company::Department::extractInfo (request_json);
-  auto trx = db ()->Begin ("creating_department_transaction",
-                           storages::postgres::ClusterHostType::kMaster, {});
-  auto res = trx.Execute (worktime_postgres_service::sql::kNewDepartment,
-                          data.name, static_cast<int> (data.leader_id));
-  if (not res.RowsAffected ())
-    {
-      trx.Rollback ();
-      return {};
-    }
-
-  trx.Commit ();
-  return res.AsSingleRow<int> ();
-}
-
-bool
-AdministrationService::modifyDepartmentInfo (company::Department &&department,
-                                             const Value &request_json) const
-{
-  return modifyDepartmentInfo (
-      std::move (department), company::Department::extractInfo (request_json));
-}
-
-bool
-AdministrationService::modifyDepartmentInfo (
-    company::Department &&department, company::Department::Info &&info) const
-{
-  auto trx = db ()->Begin ("managing_department_transaction",
-                           storages::postgres::ClusterHostType::kMaster, {});
-  auto res = trx.Execute (worktime_postgres_service::sql::kUpdateDepartment,
-                          static_cast<int> (department), info.name,
-                          static_cast<int> (info.leader_id));
-  if (not res.RowsAffected ())
-    {
-
-      trx.Rollback ();
-      return false;
-    }
-  trx.Commit ();
-  return true;
-}
-
-bool
-AdministrationService::modifyUserInfo (const Value &request_json) const
+userver::formats::json::Value
+AdministrationService::modifyUser (const Value &request_json) const
 {
   auto user = getWorker (request_json);
 
@@ -181,25 +90,58 @@ AdministrationService::modifyUserInfo (const Value &request_json) const
     {
       throw ClientError (ExternalBody{ "No table_id was provided" });
     }
-
-  return modifyUserInfo (std::move (user.value ()),
-                         Worker::extractInfo (request_json));
+  if (request_json.GetSize () > 1)
+    {
+      modifyUser (std::move (user.value ()),
+                  Worker::extractInfo (request_json));
+    }
+  return getUserInfo (std::move (user.value ()));
 }
 
-bool
-AdministrationService::modifyUserInfo (Worker &&user,
+void
+AdministrationService::modifyUser (Worker &&user, Worker::Info &&info) const
+{
+  if (info.password.has_value ())
+    {
+      modifyUserAccount (user, info.password.value ());
+    }
+  modifyUserInfo (user, std::move (info));
+}
+
+void
+AdministrationService::modifyUserAccount (const Worker &user,
+                                          std::string_view raw_password) const
+{
+  auto newUser = not userExists (user);
+  auto trx = db ()->Begin ("account_modification_transaction",
+                           storages::postgres::ClusterHostType::kMaster, {});
+  auto res = trx.Execute (worktime_postgres_service::sql::kUpdateUser,
+                          static_cast<int> (user),
+                          userver::crypto::hash::Sha1 (raw_password));
+  if (res.RowsAffected ())
+    {
+      trx.Commit ();
+      if (newUser)
+        {
+          modifyUserInfo (user, {});
+        }
+    }
+  trx.Rollback ();
+}
+
+void
+AdministrationService::modifyUserInfo (const Worker &user,
                                        Worker::Info &&info) const
 {
   auto trx = db ()->Begin ("managing_user_transaction",
                            storages::postgres::ClusterHostType::kMaster, {});
-  auto res = trx.Execute (worktime_postgres_service::sql::kUpdateUser,
-                          static_cast<int> (user), info.name, info.surname,
-                          info.patronymic);
+  auto res = trx.Execute (worktime_postgres_service::sql::kUpdateUserInfo,
+                          static_cast<int> (user), info.name.value_or (""),
+                          info.surname.value_or (""),
+                          info.patronymic.value_or (""));
   if (res.RowsAffected ())
     {
       trx.Commit ();
-      return true;
     }
   trx.Rollback ();
-  return false;
 }

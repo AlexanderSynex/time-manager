@@ -12,6 +12,7 @@
 #include <userver/utest/using_namespace_userver.hpp>
 
 #include "services/AdministrationService.hpp"
+#include "services/AuthService.hpp"
 #include "services/GeneralComponents.hpp"
 #include "services/WorktimeService.hpp"
 
@@ -21,6 +22,7 @@ main (int argc, char *argv[])
   auto component_list
       = components::MinimalServerComponentList ()
             .AppendComponentList (services::components::CommonComponents ())
+            .Append<services::auth::AuthService> ()
             .Append<services::control_role::AdministrationService> ()
             .Append<services::control_role::WorktimeService> ();
 

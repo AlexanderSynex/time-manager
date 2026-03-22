@@ -2,69 +2,41 @@
 
 #include "info/Worker.hpp"
 #include <fmt/format.h>
+#include <optional>
+#include <string_view>
 #include <userver/server/handlers/exceptions.hpp>
+
+template <typename ValueType>
+std::optional<ValueType>
+extract (std::string_view key, const userver::formats::json::Value &body,
+         bool (userver::formats::json::Value::*isType) () const noexcept)
+{
+  if (body.HasMember (key))
+    {
+      if ((body[key].*isType) ())
+        {
+          return body[key].As<ValueType> ();
+        }
+    }
+  return {};
+}
 
 Worker::Info
 Worker::extractInfo (const userver::formats::json::Value &request_json)
 {
-  if (not request_json.HasMember (Worker::Info::table_key))
-    {
-      throw userver::server::handlers::ClientError (
-          userver::server::handlers::ExternalBody{
-              fmt::format ("No '{}' value provided", "table_id") });
-    }
-  if (not request_json[Worker::Info::table_key].IsInt ())
-    {
-      throw userver::server::handlers::ClientError (
-          userver::server::handlers::ExternalBody{ fmt::format (
-              "Value '{}' should be '{}': got '{}'", "table_id", "integer",
-              request_json[Worker::Info::table_key].As<std::string> ()) });
-    }
+  auto data = Worker::Info{};
 
-  if (not request_json.HasMember (Worker::Info::name_key))
-    {
-      throw userver::server::handlers::ClientError (
-          userver::server::handlers::ExternalBody{
-              fmt::format ("No '{}' value provided", "name") });
-    }
-  if (not request_json[Worker::Info::name_key].IsString ())
-    {
-      throw userver::server::handlers::ClientError (
-          userver::server::handlers::ExternalBody{ fmt::format (
-              "Value '{}' should be '{}': got '{}'", "name", "string",
-              request_json[Worker::Info::name_key].As<std::string> ()) });
-    }
+  data.name = extract<std::string> (Info::name_key, request_json,
+                                    &userver::formats::json::Value::IsString);
+  data.surname
+      = extract<std::string> (Info::surname_key, request_json,
+                              &userver::formats::json::Value::IsString);
+  data.patronymic
+      = extract<std::string> (Info::patronymic_key, request_json,
+                              &userver::formats::json::Value::IsString);
+  data.password
+      = extract<std::string> (Info::password_key, request_json,
+                              &userver::formats::json::Value::IsString);
 
-  if (not request_json.HasMember (Worker::Info::surname_key))
-    {
-      throw userver::server::handlers::ClientError (
-          userver::server::handlers::ExternalBody{
-              fmt::format ("No '{}' value provided", "surname") });
-    }
-  if (not request_json[Worker::Info::surname_key].IsString ())
-    {
-      throw userver::server::handlers::ClientError (
-          userver::server::handlers::ExternalBody{ fmt::format (
-              "Value '{}' should be '{}': got '{}'", "surname", "string",
-              request_json[Worker::Info::surname_key].As<std::string> ()) });
-    }
-
-  if (request_json.HasMember (Worker::Info::patronymic_key))
-    {
-      if (not request_json[Worker::Info::patronymic_key].IsString ())
-        {
-          throw userver::server::handlers::ClientError (
-              userver::server::handlers::ExternalBody{
-                  fmt::format ("Value '{}' should be '{}': got '{}'",
-                               "patronymic", "string",
-                               request_json[Worker::Info::patronymic_key]
-                                   .As<std::string> ()) });
-        }
-    }
-
-  return Worker::Info{
-    request_json[Worker::Info::name_key].As<std::string> (),
-    request_json[Worker::Info::surname_key].As<std::string> (),
-    request_json[Worker::Info::patronymic_key].As<std::string> ({})
-  };
+  return data;
 }

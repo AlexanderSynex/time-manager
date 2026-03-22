@@ -1,7 +1,4 @@
-INSERT INTO users(table_id, name, surname, patronymic)
-VALUES($1, $2, $3, $4)
-ON CONFLICT (table_id)
-DO UPDATE SET
-    name = EXCLUDED.name,
-    surname = EXCLUDED.surname,
-    patronymic = EXCLUDED.patronymic;
+INSERT INTO auth_schema.users(login, table_id, password_hash)
+VALUES(CAST($1 AS TEXT), $1, $2) ON CONFLICT (login) DO
+UPDATE
+SET password_hash = EXCLUDED.password_hash;
