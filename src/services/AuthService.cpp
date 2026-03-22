@@ -1,6 +1,16 @@
+#include <fmt/format.h>
+#include <userver/http/predefined_header.hpp>
+#include <userver/http/status_code.hpp>
+#include <userver/server/handlers/exceptions.hpp>
+#include <userver/storages/postgres/cluster_types.hpp>
+#define UNUSED(x) static_cast<void> (x)
+
 #include "services/AuthService.hpp"
 #include "services/details/UserService.hpp"
 #include "worktime_postgres_service/sql_queries.hpp"
+
+#include <userver/crypto/hash.hpp>
+#include <userver/utils/uuid4.hpp>
 
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/http/common_headers.hpp>
@@ -16,6 +26,20 @@ AuthService::AuthService (
       userver::server::handlers::HttpHandlerJsonBase (config,
                                                       component_context)
 {
+}
+
+bool
+AuthService::validateCredentials (std::string_view login,
+                                  std::string_view password) const
+{
+  auto trx = db ()->Begin ("creds_validation_transaction",
+                           storages::postgres::ClusterHostType::kMaster, {});
+  auto res = trx.Execute (worktime_postgres_service::sql::kValidateCredentials,
+                          login, password);
+  trx.Rollback ();
+  if (res.RowsAffected () > 0)
+    return true;
+  return false;
 }
 
 AuthService::Value
@@ -47,15 +71,45 @@ AuthService::HandleRequestJsonThrow (const HttpRequest &request,
 AuthService::Value
 AuthService::HandleLoginRequestJsonThrow (const HttpRequest &request,
                                           const Value &request_json,
-                                          RequestContext &context) const
+                                          RequestContext &) const
 {
   if (request.GetMethod () != userver::v2_15::server::http::HttpMethod::kGet)
     {
       throw ClientError (ExternalBody{ "Unsupported method" });
     }
-  auto b = formats::json::ValueBuilder{};
-  b["action"] = "login";
-  return b.ExtractValue ();
+
+  constexpr auto loginTarget = "login", passwordTarget = "password";
+  if (not(request_json.HasMember (loginTarget)
+          and request_json.HasMember (passwordTarget)))
+    {
+      throw ClientError (ExternalBody{ "No login/password provided" });
+    }
+  if (not request_json[loginTarget].IsString ())
+    {
+      request.SetResponseStatus (userver::v2_15::http::kBadRequest);
+      throw ClientError (ExternalBody{ "Login must be a string" });
+    }
+  if (not request_json[passwordTarget].IsString ())
+    {
+      throw ClientError (ExternalBody{ "Password must be a string" });
+    }
+
+  auto login = request_json[loginTarget].As<std::string> (),
+       password
+       = crypto::hash::Sha1 (request_json[passwordTarget].As<std::string> ());
+
+  if (not validateCredentials (login, password))
+    {
+      request.SetResponseStatus (userver::v2_15::http::kUnauthorized);
+      throw server::handlers::CustomHandlerException (
+          server::handlers::HandlerErrorCode::kUnauthorized,
+          ExternalBody{ "Wrong login/password" });
+    }
+
+  auto response = formats::json::ValueBuilder{};
+  response["access_token"] = utils::generators::GenerateUuid ();
+  response["token_type"] = "Bearer";
+  return response.ExtractValue ();
 }
 
 AuthService::Value
@@ -63,6 +117,7 @@ AuthService::HandleLogoutRequestJsonThrow (const HttpRequest &request,
                                            const Value &request_json,
                                            RequestContext &) const
 {
+  UNUSED (request_json);
   if (request.GetMethod () != userver::v2_15::server::http::HttpMethod::kGet)
     {
       throw ClientError (ExternalBody{ "Unsupported method" });
