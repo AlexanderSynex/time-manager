@@ -100,14 +100,16 @@ AuthService::HandleLoginRequestJsonThrow (const HttpRequest &request,
 
   if (not validateCredentials (login, password))
     {
-      request.SetResponseStatus (userver::v2_15::http::kUnauthorized);
+      request.GetHttpResponse ().SetHeader (http::headers::kWWWAuthenticate,
+                                            std::string{ authSchema });
       throw server::handlers::CustomHandlerException (
           server::handlers::HandlerErrorCode::kUnauthorized,
           ExternalBody{ "Wrong login/password" });
     }
 
   auto response = formats::json::ValueBuilder{};
-  response["access_token"] = utils::generators::GenerateUuid ();
+  auto refresh_token = utils::generators::GenerateUuid ();
+  response["refresh_token"] = refresh_token;
   response["token_type"] = "Bearer";
   return response.ExtractValue ();
 }
