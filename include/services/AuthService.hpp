@@ -1,7 +1,8 @@
 #pragma once
 
-#include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
+#include <optional>
+#include <string>
 #include <string_view>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
@@ -27,6 +28,10 @@ public:
   {
     return true;
   }
+
+  std::optional<std::string> getAccessToken (std::string_view login) const;
+  void updateAccessToken (std::string_view login,
+                          std::string_view token) const;
 
   bool validateCredentials (std::string_view login,
                             std::string_view password) const;

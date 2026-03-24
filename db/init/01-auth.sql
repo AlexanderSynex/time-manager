@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS auth_schema.users (
 );
 
 CREATE TABLE IF NOT EXISTS auth_schema.tokens (
-  token TEXT NOT NULL,
-  login TEXT,
-  scopes TEXT[] NOT NULL,
+  token TEXT UNIQUE NOT NULL ,
+  login TEXT UNIQUE,
+  last_update TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (login) REFERENCES auth_schema.users(login)
 );

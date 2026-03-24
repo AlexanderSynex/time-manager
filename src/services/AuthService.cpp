@@ -68,6 +68,28 @@ AuthService::HandleRequestJsonThrow (const HttpRequest &request,
   return handlerIt->second ();
 }
 
+std::optional<std::string>
+AuthService::getAccessToken (std::string_view login) const
+{
+  auto trx = db ()->Begin ("access_token_transaction",
+                           storages::postgres::ClusterHostType::kMaster, {});
+  auto res
+      = trx.Execute (worktime_postgres_service::sql::kGetAccessToken, login);
+  trx.Rollback ();
+  return res.AsOptionalSingleRow<std::string> ();
+}
+
+void
+AuthService::updateAccessToken (std::string_view login,
+                                std::string_view token) const
+{
+  auto trx = db ()->Begin ("update_auth_token_transaction",
+                           storages::postgres::ClusterHostType::kMaster, {});
+  auto res = trx.Execute (worktime_postgres_service::sql::kUpdateAccessToken,
+                          login, token);
+  trx.Commit ();
+}
+
 AuthService::Value
 AuthService::HandleLoginRequestJsonThrow (const HttpRequest &request,
                                           const Value &request_json,
@@ -107,10 +129,16 @@ AuthService::HandleLoginRequestJsonThrow (const HttpRequest &request,
           ExternalBody{ "Wrong login/password" });
     }
 
+  auto token = getAccessToken (login);
+  auto access_token = token.value_or (utils::generators::GenerateUuid ());
+
+  if (not token)
+    {
+      updateAccessToken (login, access_token);
+    }
+
   auto response = formats::json::ValueBuilder{};
-  auto refresh_token = utils::generators::GenerateUuid ();
-  response["refresh_token"] = refresh_token;
-  response["token_type"] = "Bearer";
+  response["token"] = access_token;
   return response.ExtractValue ();
 }
 
