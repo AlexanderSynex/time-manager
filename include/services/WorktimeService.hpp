@@ -34,32 +34,31 @@ public:
                                 const Value &request_json,
                                 RequestContext &) const override;
 
-  Value HandleRequestArriveJsonThrow (const HttpRequest &request,
-                                      const Value &request_json,
+  Value HandleRequestArriveJsonThrow (Worker &&user,
+                                      const HttpRequest &request,
                                       RequestContext &) const;
 
-  Value HandleRequestLeaveJsonThrow (const HttpRequest &request,
-                                     const Value &request_json,
+  Value HandleRequestLeaveJsonThrow (Worker &&user, const HttpRequest &request,
                                      RequestContext &) const;
 
 private:
   std::optional<userver::storages::postgres::TimePointTz>
   getTimeFromDb (const userver::storages::Query &,
-                 std::string_view transactionName, Worker &&user,
+                 std::string_view transactionName, const Worker &user,
                  std::chrono::system_clock::time_point &&when) const;
   std::optional<userver::storages::postgres::TimePointTz>
-  getArrivalTime (Worker &&user,
+  getArrivalTime (const Worker &user,
                   std::chrono::system_clock::time_point &&when) const;
   std::optional<userver::storages::postgres::TimePointTz>
-  getLeftTime (Worker &&user,
+  getLeftTime (const Worker &user,
                std::chrono::system_clock::time_point &&when) const;
 
   std::optional<userver::storages::postgres::TimePointTz>
-  workerArrived (Worker &&user) const;
+  workerArrived (const Worker &user) const;
   std::optional<userver::storages::postgres::TimePointTz>
-  workerLeaved (Worker &&user) const;
+  workerLeaved (const Worker &user) const;
 
-  bool isOnWork (Worker &&user,
+  bool isOnWork (const Worker &user,
                  std::chrono::system_clock::time_point &&when) const;
 
   Value

@@ -68,13 +68,19 @@ AdministrationService::HandleRequestJsonThrow (const HttpRequest &request,
 Value
 AdministrationService::HandleUserJsonThrow (const HttpRequest &request,
                                             const Value &request_json,
-                                            RequestContext &) const
+                                            RequestContext &context) const
 {
+  auto user = getWorker (request_json);
+  if (not user.has_value ())
+    {
+      throw server::handlers::ClientError (
+          server::handlers::ExternalBody{ "No user table_id provided" });
+    }
   switch (request.GetMethod ())
     {
     case server::http::HttpMethod::kPut:
       {
-        return modifyUser (request_json);
+        return modifyUser (std::move (user.value ()), request_json);
       }
     default:
       throw server::handlers::ClientError (server::handlers::ExternalBody{
@@ -83,24 +89,18 @@ AdministrationService::HandleUserJsonThrow (const HttpRequest &request,
 }
 
 userver::formats::json::Value
-AdministrationService::modifyUser (const Value &request_json) const
+AdministrationService::modifyUser (Worker &&user, const Value &json_data) const
 {
-  auto user = getWorker (request_json);
-
-  if (not user.has_value ())
+  if (json_data.GetSize () > 1)
     {
-      throw ClientError (ExternalBody{ "No table_id was provided" });
+      modifyUser (user, Worker::extractInfo (json_data));
     }
-  if (request_json.GetSize () > 1)
-    {
-      modifyUser (std::move (user.value ()),
-                  Worker::extractInfo (request_json));
-    }
-  return getUserInfo (std::move (user.value ()));
+  return getUserInfo (user);
 }
 
 void
-AdministrationService::modifyUser (Worker &&user, Worker::Info &&info) const
+AdministrationService::modifyUser (const Worker &user,
+                                   Worker::Info &&info) const
 {
   if (info.password.has_value () or not userExists (user))
     {

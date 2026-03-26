@@ -1,5 +1,6 @@
 #include "services/WorktimeService.hpp"
 #include "info/DBInfo.hpp"
+#include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
 #include "worktime_postgres_service/sql_queries.hpp"
 
@@ -40,16 +41,19 @@ WorktimeService::HandleRequestJsonThrow (const HttpRequest &request,
   constexpr auto leaveTarget = "leave";
 
   std::string action = request.GetPathArg ("action");
-  auto handlers = std::unordered_map<std::string, std::function<Value ()>>{
-    { arriveTarget,
-      [&request, &request_json, &context, this] () -> Value {
-        return HandleRequestArriveJsonThrow (request, request_json, context);
-      } },
-    { leaveTarget,
-      [&request, &request_json, &context, this] () -> Value {
-        return HandleRequestLeaveJsonThrow (request, request_json, context);
-      } }
-  };
+  auto handlers
+      = std::unordered_map<std::string, std::function<Value (Worker &&)>>{
+          { arriveTarget,
+            [&request, &context, this] (Worker &&user) -> Value {
+              return HandleRequestArriveJsonThrow (std::move (user), request,
+                                                   context);
+            } },
+          { leaveTarget,
+            [&request, &context, this] (Worker &&user) -> Value {
+              return HandleRequestLeaveJsonThrow (std::move (user), request,
+                                                  context);
+            } }
+        };
 
   auto handlerIt = handlers.find (action);
   if (handlerIt == handlers.end ())
@@ -58,25 +62,25 @@ WorktimeService::HandleRequestJsonThrow (const HttpRequest &request,
           ExternalBody{ fmt::format ("Unprocessable action: {}", action) });
     }
 
-  return handlerIt->second ();
+  auto user = getWorker (context);
+  if (not user.has_value ())
+    {
+      throw server::handlers::ClientError (
+          server::handlers::ExternalBody{ "No user table_id provided" });
+    }
+  return handlerIt->second (std::move (user.value ()));
 }
 
 handlers::HttpHandlerJsonBase::Value
-WorktimeService::HandleRequestArriveJsonThrow (const HttpRequest &request,
-                                               const Value &request_json,
-                                               RequestContext &) const
+WorktimeService::HandleRequestArriveJsonThrow (Worker &&user,
+                                               const HttpRequest &request,
+                                               RequestContext &context) const
 {
   switch (request.GetMethod ())
     {
     case userver::v2_15::server::http::HttpMethod::kPut:
       {
-        if (not isValidUser (request_json))
-          {
-            throw server::handlers::ClientError (
-                server::handlers::ExternalBody{ "No user table_id provided" });
-          }
-        auto arriveTime
-            = workerArrived (std::move (getWorker (request_json).value ()));
+        auto arriveTime = workerArrived (std::move (user));
         if (not arriveTime.has_value ())
           {
             throw server::handlers::ClientError (
@@ -86,8 +90,7 @@ WorktimeService::HandleRequestArriveJsonThrow (const HttpRequest &request,
 
         return prepareMessage (
             std::move (arriveTime.value ()),
-            isOnWork (std::move (getWorker (request_json).value ()),
-                      std::move (arriveTime.value ())));
+            isOnWork (user, std::move (arriveTime.value ())));
       }
     default:
       throw server::handlers::ClientError (server::handlers::ExternalBody{
@@ -96,25 +99,18 @@ WorktimeService::HandleRequestArriveJsonThrow (const HttpRequest &request,
 }
 
 handlers::HttpHandlerJsonBase::Value
-WorktimeService::HandleRequestLeaveJsonThrow (const HttpRequest &request,
-                                              const Value &request_json,
+WorktimeService::HandleRequestLeaveJsonThrow (Worker &&user,
+                                              const HttpRequest &request,
                                               RequestContext &) const
 {
   switch (request.GetMethod ())
     {
     case userver::v2_15::server::http::HttpMethod::kPut:
       {
-        if (not isValidUser (request_json))
-          {
-            throw server::handlers::ClientError (
-                server::handlers::ExternalBody{ "Unknown user provided: {}" });
-          }
-        auto leaveTime
-            = workerLeaved (std::move (getWorker (request_json).value ()));
+        auto leaveTime = workerLeaved (user);
         return prepareMessage (
             std::move (leaveTime),
-            isOnWork (std::move (getWorker (request_json).value ()),
-                      std::move (leaveTime.value ())));
+            isOnWork (user, std::move (leaveTime.value ())));
       }
     default:
       throw server::handlers::ClientError (server::handlers::ExternalBody{
@@ -123,7 +119,7 @@ WorktimeService::HandleRequestLeaveJsonThrow (const HttpRequest &request,
 }
 
 std::optional<userver::storages::postgres::TimePointTz>
-WorktimeService::workerArrived (Worker &&user) const
+WorktimeService::workerArrived (const Worker &user) const
 {
   auto trx = db ()->Begin ("worker_arrived_transaction",
                            storages::postgres::ClusterHostType::kMaster, {});
@@ -137,7 +133,7 @@ WorktimeService::workerArrived (Worker &&user) const
 }
 
 std::optional<userver::storages::postgres::TimePointTz>
-WorktimeService::workerLeaved (Worker &&user) const
+WorktimeService::workerLeaved (const Worker &user) const
 {
   auto trx = db ()->Begin ("worker_left_transaction",
                            storages::postgres::ClusterHostType::kMaster, {});
@@ -153,7 +149,7 @@ WorktimeService::workerLeaved (Worker &&user) const
 std::optional<userver::storages::postgres::TimePointTz>
 services::control_role::WorktimeService::getTimeFromDb (
     const userver::storages::Query &query, std::string_view transactionName,
-    Worker &&user, std::chrono::system_clock::time_point &&when) const
+    const Worker &user, std::chrono::system_clock::time_point &&when) const
 {
   using namespace std::chrono;
   auto trx = db ()->Begin (std::string{ transactionName },
@@ -174,25 +170,25 @@ services::control_role::WorktimeService::getTimeFromDb (
 
 std::optional<userver::storages::postgres::TimePointTz>
 services::control_role::WorktimeService::getArrivalTime (
-    Worker &&user, std::chrono::system_clock::time_point &&when) const
+    const Worker &user, std::chrono::system_clock::time_point &&when) const
 {
   return getTimeFromDb (worktime_postgres_service::sql::kGetArrivalTime,
-                        "get_worker_arrive_time_transaction", std::move (user),
+                        "get_worker_arrive_time_transaction", user,
                         std::move (when));
 }
 
 std::optional<userver::storages::postgres::TimePointTz>
 services::control_role::WorktimeService::getLeftTime (
-    Worker &&user, std::chrono::system_clock::time_point &&when) const
+    const Worker &user, std::chrono::system_clock::time_point &&when) const
 {
   return getTimeFromDb (worktime_postgres_service::sql::kGetDepartTime,
-                        "get_worker_leave_time_transaction", std::move (user),
+                        "get_worker_leave_time_transaction", user,
                         std::move (when));
 }
 
 bool
 services::control_role::WorktimeService::isOnWork (
-    Worker &&user, std::chrono::system_clock::time_point &&when) const
+    const Worker &user, std::chrono::system_clock::time_point &&when) const
 {
   auto arrived = getArrivalTime (
       Worker (user), std::chrono::system_clock::time_point{ when });

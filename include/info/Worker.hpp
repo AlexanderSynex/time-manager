@@ -8,6 +8,7 @@
 
 struct Worker
 {
+  using IDType = std::size_t;
   static constexpr std::string_view table_key = "table_id";
   struct Info
   {
@@ -20,5 +21,5 @@ struct Worker
   };
   static Info extractInfo (const userver::formats::json::Value &);
   operator int () const { return static_cast<int> (id); }
-  std::size_t id;
+  IDType id;
 };

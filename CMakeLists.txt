@@ -40,7 +40,7 @@ set(SOURCES src/main.cpp
             src/services/WorktimeService.cpp
             src/services/AuthService.cpp
             src/services/AuthCheckerFactory.cpp
-            src/services/auth/AuthBearerChecker.cpp
+            src/services/auth/schemas/BearerSchema.cpp
             src/services/details/UserService.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})

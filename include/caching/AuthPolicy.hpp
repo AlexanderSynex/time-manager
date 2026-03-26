@@ -17,6 +17,7 @@ struct AuthInfo
   userver::server::auth::UserAuthInfo::Ticket token;
   std::string login;
   std::vector<std::string> scopes = {};
+  int table_id;
 };
 
 struct AuthCachePolicy

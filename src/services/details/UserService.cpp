@@ -3,9 +3,11 @@
 
 #include <cstddef>
 #include <fmt/format.h>
+#include <userver/formats/json/value.hpp>
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/server/handlers/exceptions.hpp>
+#include <userver/server/request/request_context.hpp>
 #include <userver/server/server.hpp>
 #include <userver/storages/postgres/cluster_types.hpp>
 #include <userver/storages/postgres/component.hpp>
@@ -36,20 +38,32 @@ UserService::UserService (const components::ComponentContext &context,
 
 /// @return Дискриптор пользователя по json-запросу
 std::optional<Worker>
-UserService::getWorker (const JsonData &request) const
+UserService::getWorker (server::request::RequestContext &context) const
 {
-  if (not request[Worker::table_key].IsInt ())
+  auto user_id = context.GetDataOptional<int> (Worker::table_key);
+  if (not user_id)
+    {
+      return {};
+    }
+  return Worker{ static_cast<std::size_t> (*user_id) };
+}
+
+/// @return Дискриптор пользователя по json-запросу
+std::optional<Worker>
+UserService::getWorker (const formats::json::Value &body) const
+{
+  if (not body[Worker::table_key].IsInt ())
     {
       return {};
     }
   return Worker{ static_cast<std::size_t> (
-      request[Worker::table_key].As<int> ()) };
+      body[Worker::table_key].As<int> ()) };
 }
 
 /// @brief Формируем запрос с данными пользователя по дискриптору
 /// @details Возможно добавить кеширование
 UserService::JsonData
-UserService::getUserInfo (Worker &&user) const
+UserService::getUserInfo (const Worker &user) const
 {
   auto trx = db ()->Begin ("finding_user_info",
                            storages::postgres::ClusterHostType::kMaster, {});
@@ -74,18 +88,6 @@ UserService::getUserInfo (Worker &&user) const
   auto data = ValueBuilder{};
   data["data"] = userData.ExtractValue ();
   return data.ExtractValue ();
-}
-
-UserService::JsonData
-UserService::getUserInfo (const JsonData &request) const
-{
-  auto worker = getWorker (request);
-  if (not worker.has_value ())
-    {
-      throw server::handlers::ClientError (
-          server::handlers::ExternalBody{ fmt::format ("No user found") });
-    }
-  return getUserInfo (std::move (worker.value ()));
 }
 
 bool

@@ -39,8 +39,9 @@ private:
   Value HandleUserJsonThrow (const HttpRequest &request,
                              const Value &request_json,
                              RequestContext &context) const;
-  userver::formats::json::Value modifyUser (const Value &request_json) const;
-  void modifyUser (Worker &&user, Worker::Info &&info) const;
+  userver::formats::json::Value modifyUser (Worker &&user,
+                                            const Value &request_json) const;
+  void modifyUser (const Worker &user, Worker::Info &&info) const;
   void modifyUserAccount (const Worker &user,
                           std::string_view raw_password) const;
   void modifyUserInfo (const Worker &user, Worker::Info &&info) const;
