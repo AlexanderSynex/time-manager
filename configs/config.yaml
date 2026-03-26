@@ -34,7 +34,6 @@ components_manager:
                 types:
                   - bearer
                 scopes:
-                  - admin
                   - user
 
         auth-service:

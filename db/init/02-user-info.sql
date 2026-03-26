@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS company_schema.worktime (
     day DATE NOT NULL DEFAULT CURRENT_DATE,
     arrived TIMESTAMPTZ NOT NULL,
     departed TIMESTAMPTZ DEFAULT NULL,
-    FOREIGN KEY (user_id) REFERENCES company_schema.users_info(table_id),
+    FOREIGN KEY (user_id) REFERENCES auth_schema.users(table_id),
     CONSTRAINT time_check CHECK (departed > arrived),
     CONSTRAINT unique_worker_date UNIQUE (user_id, day)
 );

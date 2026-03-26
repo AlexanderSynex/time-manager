@@ -102,9 +102,9 @@ AdministrationService::modifyUser (const Value &request_json) const
 void
 AdministrationService::modifyUser (Worker &&user, Worker::Info &&info) const
 {
-  if (info.password.has_value ())
+  if (info.password.has_value () or not userExists (user))
     {
-      modifyUserAccount (user, info.password.value ());
+      modifyUserAccount (user, info.password.value_or (""));
     }
   modifyUserInfo (user, std::move (info));
 }
