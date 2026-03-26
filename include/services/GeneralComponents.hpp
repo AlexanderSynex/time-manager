@@ -1,5 +1,6 @@
 #pragma once
 
+#include "info/DBInfo.hpp"
 #include <userver/clients/dns/component.hpp>
 #include <userver/components/component_list.hpp>
 #include <userver/storages/postgres/component.hpp>
@@ -13,6 +14,6 @@ static const auto CommonComponents
   return userver::components::ComponentList{}
       .Append<userver::clients::dns::Component> ()
       .Append<userver::components::TestsuiteSupport> ()
-      .Append<userver::components::Postgres> ("db");
+      .Append<userver::components::Postgres> (db::info::db_name);
 };
 }

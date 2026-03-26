@@ -1,4 +1,5 @@
 #include "services/AdministrationService.hpp"
+#include "info/DBInfo.hpp"
 #include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
 
@@ -33,7 +34,7 @@ using namespace services::control_role;
 AdministrationService::AdministrationService (
     const components::ComponentConfig &config,
     const components::ComponentContext &component_context)
-    : details::UserService (component_context, "db"),
+    : details::UserService (component_context, db::info::db_name),
       userver::server::handlers::HttpHandlerJsonBase::HttpHandlerJsonBase (
           config, component_context)
 {

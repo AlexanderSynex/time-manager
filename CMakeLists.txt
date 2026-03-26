@@ -39,6 +39,8 @@ set(SOURCES src/main.cpp
             src/services/AdministrationService.cpp
             src/services/WorktimeService.cpp
             src/services/AuthService.cpp
+            src/services/AuthCheckerFactory.cpp
+            src/services/auth/AuthBearerChecker.cpp
             src/services/details/UserService.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -62,5 +64,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE userver::core userver::postgresql 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 if(EXISTS ${CMAKE_BINARY_DIR}/compile_commands.json)
-    file(COPY ${CMAKE_BINARY_DIR}/compile_commands.json DESTINATION ${CMAKE_SOURCE_DIR})
+  file(COPY ${CMAKE_BINARY_DIR}/compile_commands.json DESTINATION ${CMAKE_SOURCE_DIR})
 endif()

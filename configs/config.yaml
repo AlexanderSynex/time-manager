@@ -20,10 +20,22 @@ components_manager:
         administration-service:
             path: /api/v1/admin/{target}
             method: PUT
+            auth:
+                types:
+                  - bearer
+                scopes:
+                  - admin
+
 
         worktime-service:
             path: /api/v1/user/time/{action}
             method: PUT
+            auth:
+                types:
+                  - bearer
+                scopes:
+                  - admin
+                  - user
 
         auth-service:
             path: /api/v1/user/auth/{action}
@@ -35,7 +47,13 @@ components_manager:
         db:
             # "postgresql://[user]:[password]@[host]:[port]/[database]"
             dbconnection: "postgresql://admin:admin@127.0.0.1:5432/company"
+            blocking_task_processor: fs-task-processor
             dns_resolver: async
+        
+        auth-cache:
+            pgcomponent: db
+            update-interval: 10s
+            chunk-size: 0
 
         dns-client:
             fs-task-processor: fs-task-processor

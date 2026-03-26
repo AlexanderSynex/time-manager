@@ -1,4 +1,5 @@
 #include "services/WorktimeService.hpp"
+#include "info/DBInfo.hpp"
 #include "services/details/UserService.hpp"
 #include "worktime_postgres_service/sql_queries.hpp"
 
@@ -26,7 +27,7 @@ using namespace services::control_role;
 WorktimeService::WorktimeService (
     const components::ComponentConfig &config,
     const components::ComponentContext &component_context)
-    : details::UserService (component_context, "db"),
+    : details::UserService (component_context, db::info::db_name),
       handlers::HttpHandlerJsonBase (config, component_context)
 {
 }

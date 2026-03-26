@@ -2,6 +2,7 @@
 #include <userver/clients/dns/resolver_fwd.hpp>
 #include <userver/components/minimal_server_component_list.hpp>
 
+#include <userver/server/handlers/auth/auth_checker_factory.hpp>
 #include <userver/storages/postgres/component.hpp>
 #include <userver/testsuite/postgres_control.hpp>
 #include <userver/testsuite/testsuite_support.hpp>
@@ -11,7 +12,9 @@
 // Note: this is for the purposes of tests/samples only
 #include <userver/utest/using_namespace_userver.hpp>
 
+#include "caching/AuthPolicy.hpp"
 #include "services/AdministrationService.hpp"
+#include "services/AuthCheckerFactory.hpp"
 #include "services/AuthService.hpp"
 #include "services/GeneralComponents.hpp"
 #include "services/WorktimeService.hpp"
@@ -19,10 +22,14 @@
 int
 main (int argc, char *argv[])
 {
+  userver::server::handlers::auth::RegisterAuthCheckerFactory<
+      services::auth::AuthCheckerFactory> ();
+
   auto component_list
       = components::MinimalServerComponentList ()
             .AppendComponentList (services::components::CommonComponents ())
             .Append<services::auth::AuthService> ()
+            .Append<services::caching::AuthCache> ()
             .Append<services::control_role::AdministrationService> ()
             .Append<services::control_role::WorktimeService> ();
 

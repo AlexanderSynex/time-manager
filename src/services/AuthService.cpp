@@ -1,3 +1,4 @@
+#include "info/DBInfo.hpp"
 #include <fmt/format.h>
 #include <userver/http/predefined_header.hpp>
 #include <userver/http/status_code.hpp>
@@ -6,7 +7,6 @@
 #define UNUSED(x) static_cast<void> (x)
 
 #include "services/AuthService.hpp"
-#include "services/details/UserService.hpp"
 #include "worktime_postgres_service/sql_queries.hpp"
 
 #include <userver/crypto/hash.hpp>
@@ -22,7 +22,8 @@ using namespace services::auth;
 AuthService::AuthService (
     const userver::components::ComponentConfig &config,
     const userver::components::ComponentContext &component_context)
-    : control_role::details::UserService (component_context, "db"),
+    : control_role::details::UserService (component_context,
+                                          db::info::db_name),
       userver::server::handlers::HttpHandlerJsonBase (config,
                                                       component_context)
 {
