@@ -3,13 +3,19 @@ version: '3.12'
 services:
   db:
     image: docker.io/library/postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - ADMIN_LOGIN=${ADMIN_LOGIN}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminadmin}
     env_file:
-      - ./.env
+      - .env
     ports:
       - 5432:5432
     volumes:
       - ./db/init:/docker-entrypoint-initdb.d
-      - time-data:/var/lib/postgresql/data
+      # - time-data:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
