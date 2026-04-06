@@ -68,7 +68,7 @@ AdministrationService::HandleRequestJsonThrow (const HttpRequest &request,
 Value
 AdministrationService::HandleUserJsonThrow (const HttpRequest &request,
                                             const Value &request_json,
-                                            RequestContext &context) const
+                                            RequestContext &) const
 {
   auto user = getWorker (request_json);
   if (not user.has_value ())

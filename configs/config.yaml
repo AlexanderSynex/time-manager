@@ -5,18 +5,35 @@ components_manager:
  
         fs-task-processor:
             worker_threads: 1
- 
     components:
         server:
             listener:
                 port: 8080
+
+        default-server-middleware-pipeline-builder:
+            append:
+              - cors-middleware
+        cors-middleware: 
+            allowed-origins: 
+                - http://localhost:5173
+            allowed-methods: 
+                - GET
+                - PUT
+            allow-credentials: true
+        # cors-middleware-service: {} 
+
+        # default-server-middleware-pipeline-builder:
+        #         append: 
+        #             - cors-middleware
+        #             # - cors-middleware-service
+
         logging:
             loggers:
                 default:
                     file_path: '@stderr'
                     level: error
                     overflow_behavior: discard
- 
+
         administration-service:
             path: /api/v1/admin/{target}
             method: PUT
@@ -38,9 +55,8 @@ components_manager:
 
         auth-service:
             path: /api/v1/user/auth/{action}
-            method: GET
+            method: GET,OPTIONS
 
-        
         testsuite-support:
 
         db:

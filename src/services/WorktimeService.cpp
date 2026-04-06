@@ -34,7 +34,7 @@ WorktimeService::WorktimeService (
 }
 handlers::HttpHandlerJsonBase::Value
 WorktimeService::HandleRequestJsonThrow (const HttpRequest &request,
-                                         const Value &request_json,
+                                         const Value &,
                                          RequestContext &context) const
 {
   constexpr auto arriveTarget = "arrive";
@@ -74,7 +74,7 @@ WorktimeService::HandleRequestJsonThrow (const HttpRequest &request,
 handlers::HttpHandlerJsonBase::Value
 WorktimeService::HandleRequestArriveJsonThrow (Worker &&user,
                                                const HttpRequest &request,
-                                               RequestContext &context) const
+                                               RequestContext &) const
 {
   switch (request.GetMethod ())
     {
