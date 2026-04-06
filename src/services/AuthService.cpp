@@ -1,7 +1,9 @@
 #include "info/DBInfo.hpp"
 #include <fmt/format.h>
+#include <sstream>
 #include <userver/http/predefined_header.hpp>
 #include <userver/http/status_code.hpp>
+#include <userver/logging/log.hpp>
 #include <userver/server/handlers/exceptions.hpp>
 #include <userver/storages/postgres/cluster_types.hpp>
 #define UNUSED(x) static_cast<void> (x)
@@ -96,7 +98,7 @@ AuthService::HandleLoginRequestJsonThrow (const HttpRequest &request,
                                           const Value &request_json,
                                           RequestContext &) const
 {
-  if (request.GetMethod () != userver::v2_15::server::http::HttpMethod::kGet)
+  if (request.GetMethod () != userver::v2_15::server::http::HttpMethod::kPost)
     {
       throw ClientError (ExternalBody{ "Unsupported method" });
     }

@@ -55,7 +55,7 @@ components_manager:
 
         auth-service:
             path: /api/v1/user/auth/{action}
-            method: GET,OPTIONS
+            method: POST,OPTIONS
 
         testsuite-support:
 
