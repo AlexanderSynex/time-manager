@@ -5,6 +5,7 @@
 #include <userver/http/status_code.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/server/handlers/exceptions.hpp>
+#include <userver/server/http/http_response_cookie.hpp>
 #include <userver/storages/postgres/cluster_types.hpp>
 #define UNUSED(x) static_cast<void> (x)
 
@@ -140,8 +141,15 @@ AuthService::HandleLoginRequestJsonThrow (const HttpRequest &request,
       updateAccessToken (login, access_token);
     }
 
+  auto cookie = userver::server::http::Cookie{ "token", access_token };
+  cookie.SetHttpOnly ();
+  cookie.SetPath ("/");
+  cookie.SetMaxAge (std::chrono::hours (24));
+  request.GetHttpResponse ().SetCookie (std::move (cookie));
+
   auto response = formats::json::ValueBuilder{};
   response["token"] = access_token;
+  response["logged"] = true;
   return response.ExtractValue ();
 }
 

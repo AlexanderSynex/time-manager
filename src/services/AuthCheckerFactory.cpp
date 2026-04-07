@@ -12,6 +12,7 @@
 #include <userver/server/request/request_context.hpp>
 
 using namespace services::auth;
+
 AuthCheckerFactory::AuthCheckerFactory (
     const userver::components::ComponentContext &context)
     : cache{ context.FindComponent<caching::AuthCache> () }

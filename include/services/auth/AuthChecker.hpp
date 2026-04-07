@@ -2,10 +2,15 @@
 
 #include "caching/AuthPolicy.hpp"
 
+#include <optional>
+#include <string>
+#include <string_view>
 #include <userver/http/common_headers.hpp>
+#include <userver/logging/log.hpp>
 #include <userver/server/auth/user_auth_info.hpp>
 #include <userver/server/auth/user_scopes.hpp>
 #include <userver/server/handlers/auth/auth_checker_base.hpp>
+#include <userver/server/http/http_method.hpp>
 #include <userver/server/http/http_request.hpp>
 #include <userver/server/request/request_context.hpp>
 
@@ -26,27 +31,40 @@ public:
   {
   }
 
-  [[nodiscard]] userver::server::handlers::auth::AuthCheckResult
-  CheckAuth (
-      const userver::server::http::HttpRequest &request,
-      userver::server::request::RequestContext &request_context) const override
+  std::optional<std::string>
+  extractToken (const userver::server::http::HttpRequest &request) const
   {
+
+    constexpr auto cookieTokenName = "token";
+    if (request.HasCookie (cookieTokenName))
+      {
+        return request.GetCookie (cookieTokenName);
+      }
+
     auto authHeader
         = request.GetHeader (userver::http::headers::kAuthorization);
     if (authHeader.empty ())
       {
-        return userver::server::handlers::auth::AuthCheckResult{
-          userver::server::handlers::auth::AuthCheckResult::Status::
-              kTokenNotFound,
-          {},
-          "'Authorization' header is empty",
-          userver::server::handlers::HandlerErrorCode::kUnauthorized
-        };
+        return {};
       }
 
     auto token = AuthSchema::extractToken (authHeader);
 
     const auto authSchemaPos = authHeader.find (' ');
+
+    return std::string (authHeader.data () + authSchemaPos + 1);
+  }
+
+  [[nodiscard]] userver::server::handlers::auth::AuthCheckResult
+  CheckAuth (
+      const userver::server::http::HttpRequest &request,
+      userver::server::request::RequestContext &request_context) const override
+  {
+    if (request.GetMethod () == userver::server::http::HttpMethod::kOptions)
+      {
+        return {};
+      }
+    auto token = extractToken (request);
     if (not token.has_value ())
       {
         return userver::server::handlers::auth::AuthCheckResult{
@@ -57,12 +75,9 @@ public:
           userver::server::handlers::HandlerErrorCode::kUnauthorized
         };
       }
-
-    const auto tokenTicket
-        = userver::server::auth::UserAuthInfo::Ticket{ authHeader.data ()
-                                                       + authSchemaPos + 1 };
     const auto snapshot = auth_cache_.Get ();
-    auto it = snapshot->find (tokenTicket);
+    auto it = snapshot->find (
+        userver::server::auth::UserAuthInfo::Ticket{ token.value () });
     if (it == snapshot->end ())
       {
         return AuthCheckResult{ AuthCheckResult::Status::kForbidden,

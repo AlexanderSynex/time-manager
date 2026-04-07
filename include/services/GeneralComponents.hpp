@@ -18,7 +18,6 @@ static const auto CommonComponents
       .Append<userver::clients::dns::Component> ()
       .Append<userver::components::TestsuiteSupport> ()
       .Append<userver::components::Postgres> (db::info::db_name)
-      //   .Append<middleware::CorsMiddlewareFactory> ()
       .Append<userver::server::middlewares::CorsFactory> ();
 };
 }

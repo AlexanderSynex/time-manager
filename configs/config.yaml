@@ -18,14 +18,9 @@ components_manager:
                 - http://localhost:5173
             allowed-methods: 
                 - GET
+                - POST
                 - PUT
             allow-credentials: true
-        # cors-middleware-service: {} 
-
-        # default-server-middleware-pipeline-builder:
-        #         append: 
-        #             - cors-middleware
-        #             # - cors-middleware-service
 
         logging:
             loggers:
@@ -46,7 +41,7 @@ components_manager:
 
         worktime-service:
             path: /api/v1/user/time/{action}
-            method: PUT
+            method: PUT,OPTIONS
             auth:
                 types:
                   - bearer
