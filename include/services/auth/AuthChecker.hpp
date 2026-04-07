@@ -1,6 +1,7 @@
 #pragma once
 
 #include "caching/AuthPolicy.hpp"
+#include "info/CookieInfo.hpp"
 
 #include <optional>
 #include <string>
@@ -34,11 +35,9 @@ public:
   std::optional<std::string>
   extractToken (const userver::server::http::HttpRequest &request) const
   {
-
-    constexpr auto cookieTokenName = "token";
-    if (request.HasCookie (cookieTokenName))
+    if (request.HasCookie (info::cookies::access_token_name.data ()))
       {
-        return request.GetCookie (cookieTokenName);
+        return request.GetCookie (info::cookies::access_token_name.data ());
       }
 
     auto authHeader

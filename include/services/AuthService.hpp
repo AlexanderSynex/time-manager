@@ -8,6 +8,7 @@
 #include <userver/components/component_context.hpp>
 #include <userver/server/handlers/http_handler_json_base.hpp>
 #include <userver/server/http/http_request.hpp>
+#include <userver/server/http/http_response_cookie.hpp>
 
 namespace services::auth
 {
@@ -30,11 +31,15 @@ public:
   }
 
   std::optional<std::string> getAccessToken (std::string_view login) const;
+
+  std::optional<std::string> getCookieAccessToken (const HttpRequest &) const;
   void updateAccessToken (std::string_view login,
                           std::string_view token) const;
 
   bool validateCredentials (std::string_view login,
                             std::string_view password) const;
+
+  bool validateCookie (const HttpRequest &request) const;
 
   Value HandleRequestJsonThrow (const HttpRequest &request,
                                 const Value &request_json,

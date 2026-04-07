@@ -1,10 +1,13 @@
+#include "info/CookieInfo.hpp"
 #include "info/DBInfo.hpp"
 #include <fmt/format.h>
 #include <sstream>
+#include <userver/formats/json/value.hpp>
 #include <userver/http/predefined_header.hpp>
 #include <userver/http/status_code.hpp>
 #include <userver/logging/log.hpp>
 #include <userver/server/handlers/exceptions.hpp>
+#include <userver/server/http/http_request.hpp>
 #include <userver/server/http/http_response_cookie.hpp>
 #include <userver/storages/postgres/cluster_types.hpp>
 #define UNUSED(x) static_cast<void> (x)
@@ -46,6 +49,23 @@ AuthService::validateCredentials (std::string_view login,
   return false;
 }
 
+bool
+AuthService::validateCookie (const HttpRequest &request) const
+{
+  if (not request.HasCookie (info::cookies::access_token_name.data ()))
+    {
+      return false;
+    }
+
+  auto trx = db ()->Begin ("auth-token-validation-transaction",
+                           storages::postgres::ClusterHostType::kMaster, {});
+  auto res = trx.Execute (
+      worktime_postgres_service::sql::kValidateToken,
+      request.GetCookie (info::cookies::access_token_name.data ()));
+  trx.Rollback ();
+  return res.RowsAffected ();
+}
+
 AuthService::Value
 AuthService::HandleRequestJsonThrow (const HttpRequest &request,
                                      const Value &request_json,
@@ -83,6 +103,15 @@ AuthService::getAccessToken (std::string_view login) const
   return res.AsOptionalSingleRow<std::string> ();
 }
 
+std::optional<std::string>
+AuthService::getCookieAccessToken (
+    const server::http::HttpRequest &request) const
+{
+  if (not request.HasCookie (info::cookies::access_token_name.data ()))
+    return {};
+  return request.GetCookie (info::cookies::access_token_name.data ());
+}
+
 void
 AuthService::updateAccessToken (std::string_view login,
                                 std::string_view token) const
@@ -102,6 +131,21 @@ AuthService::HandleLoginRequestJsonThrow (const HttpRequest &request,
   if (request.GetMethod () != userver::v2_15::server::http::HttpMethod::kPost)
     {
       throw ClientError (ExternalBody{ "Unsupported method" });
+    }
+
+  auto prepareMessage = [] (std::string_view token) -> formats::json::Value {
+    auto response = formats::json::ValueBuilder{};
+    response["token"] = token;
+    response["logged"] = true;
+    return response.ExtractValue ();
+  };
+
+  if (validateCookie (request))
+    {
+      if (auto token = getCookieAccessToken (request); token.has_value ())
+        {
+          return prepareMessage (token.value ());
+        }
     }
 
   constexpr auto loginTarget = "login", passwordTarget = "password";
@@ -141,16 +185,15 @@ AuthService::HandleLoginRequestJsonThrow (const HttpRequest &request,
       updateAccessToken (login, access_token);
     }
 
-  auto cookie = userver::server::http::Cookie{ "token", access_token };
+  auto cookie = userver::server::http::Cookie{
+    info::cookies::access_token_name.data (), access_token
+  };
   cookie.SetHttpOnly ();
   cookie.SetPath ("/");
   cookie.SetMaxAge (std::chrono::hours (24));
   request.GetHttpResponse ().SetCookie (std::move (cookie));
 
-  auto response = formats::json::ValueBuilder{};
-  response["token"] = access_token;
-  response["logged"] = true;
-  return response.ExtractValue ();
+  return prepareMessage (access_token);
 }
 
 AuthService::Value
