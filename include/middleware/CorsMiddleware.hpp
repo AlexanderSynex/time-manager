@@ -44,12 +44,8 @@ public:
                                              { "Headers", headers },
                                              { "Credentials", credentials } })
       {
-        LOG_CRITICAL ("Adding header: {}={}",
-                      std::string{ methodNamePrefix } + method, value);
         responce.SetHeader (std::string{ methodNamePrefix } + method, value);
       }
-    LOG_CRITICAL ("Handling CORS requests");
-
     if (request.GetMethod ()
         == userver::v2_15::server::http::HttpMethod::kOptions)
       {

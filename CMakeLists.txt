@@ -38,6 +38,7 @@ set(SOURCES src/main.cpp
             src/info/Department.cpp
             src/services/AdministrationService.cpp
             src/services/WorktimeService.cpp
+            src/services/UserInfoService.cpp
             src/services/AuthService.cpp
             src/services/AuthCheckerFactory.cpp
             src/services/auth/schemas/BearerSchema.cpp

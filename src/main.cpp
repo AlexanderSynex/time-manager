@@ -17,6 +17,7 @@
 #include "services/AuthCheckerFactory.hpp"
 #include "services/AuthService.hpp"
 #include "services/GeneralComponents.hpp"
+#include "services/InfoComponents.hpp"
 #include "services/WorktimeService.hpp"
 
 int
@@ -31,7 +32,8 @@ main (int argc, char *argv[])
             .Append<services::auth::AuthService> ()
             .Append<services::caching::AuthCache> ()
             .Append<services::control_role::AdministrationService> ()
-            .Append<services::control_role::WorktimeService> ();
+            .Append<services::control_role::WorktimeService> ()
+            .AppendComponentList (services::components::InfoComponents ());
 
   return utils::DaemonMain (argc, argv, component_list);
 }

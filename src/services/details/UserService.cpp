@@ -85,9 +85,7 @@ UserService::getUserInfo (const Worker &user) const
   userData[std::string{ Worker::Info::patronymic_key }]
       = userInfo[std::string{ Worker::Info::patronymic_key }]
             .As<std::string> ();
-  auto data = ValueBuilder{};
-  data["data"] = userData.ExtractValue ();
-  return data.ExtractValue ();
+  return userData.ExtractValue ();
 }
 
 bool

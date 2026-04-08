@@ -47,6 +47,16 @@ components_manager:
                   - bearer
                 scopes:
                   - user
+        
+        user-info-service:
+            path: /api/v1/user 
+            method: GET
+            auth:
+                types:
+                  - bearer
+                scopes:
+                  - user
+        
 
         auth-service:
             path: /api/v1/user/auth/{action}
