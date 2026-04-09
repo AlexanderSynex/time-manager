@@ -2,14 +2,17 @@
 #include "info/DBInfo.hpp"
 #include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
+#include "services/details/WorkDay.hpp"
 #include "worktime_postgres_service/sql_queries.hpp"
 
 #include <bits/chrono.h>
 #include <chrono>
 #include <fmt/format.h>
+#include <optional>
 #include <string>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
+#include <userver/formats/json/value.hpp>
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/formats/yaml/value.hpp>
 #include <userver/logging/log.hpp>
@@ -43,6 +46,11 @@ WorktimeService::HandleRequestJsonThrow (const HttpRequest &request,
   std::string action = request.GetPathArg ("action");
   auto handlers
       = std::unordered_map<std::string, std::function<Value (Worker &&)>>{
+          { "",
+            [&request, &context, this] (Worker &&user) -> Value {
+              return HandleRequestInfoJsonThrow (std::move (user), request,
+                                                 context);
+            } },
           { arriveTarget,
             [&request, &context, this] (Worker &&user) -> Value {
               return HandleRequestArriveJsonThrow (std::move (user), request,
@@ -118,6 +126,38 @@ WorktimeService::HandleRequestLeaveJsonThrow (Worker &&user,
     }
 }
 
+userver::server::handlers::HttpHandlerJsonBase::Value
+services::control_role::WorktimeService::HandleRequestInfoJsonThrow (
+    Worker &&user, const HttpRequest &request, RequestContext &) const
+{
+  if (request.GetMethod () != userver::v2_15::server::http::HttpMethod::kGet)
+    {
+      throw server::handlers::ClientError (server::handlers::ExternalBody{
+          fmt::format ("Unsupported method {}", request.GetMethod ()) });
+    }
+
+  auto builder = formats::json::ValueBuilder{};
+  builder["table_id"] = std::to_string (user.id);
+  const auto worked = isWorked (user);
+  if (not worked)
+    {
+      return builder.ExtractValue ();
+    }
+  builder["time"]
+      = [] (std::optional<storages::postgres::TimePointTz> &&arrived,
+            std::optional<storages::postgres::TimePointTz> &&departed,
+            bool isOnWork) -> formats::json::Value {
+    auto builder = formats::json::ValueBuilder{};
+    builder["on_work"] = isOnWork;
+    if (arrived.has_value ())
+      builder["arrived"] = arrived.value ();
+    if (departed.has_value ())
+      builder["departed"] = departed.value ();
+    return builder.ExtractValue ();
+  }(getArrivalTime (user), getLeftTime (user), isOnWork (user));
+  return builder.ExtractValue ();
+}
+
 std::optional<userver::storages::postgres::TimePointTz>
 WorktimeService::workerArrived (const Worker &user) const
 {
@@ -129,7 +169,7 @@ WorktimeService::workerArrived (const Worker &user) const
     trx.Commit ();
   else
     trx.Rollback ();
-  return getArrivalTime (std::move (user), std::chrono::system_clock::now ());
+  return getArrivalTime (std::move (user));
 }
 
 std::optional<userver::storages::postgres::TimePointTz>
@@ -143,25 +183,20 @@ WorktimeService::workerLeaved (const Worker &user) const
     trx.Commit ();
   else
     trx.Rollback ();
-  return getLeftTime (std::move (user), std::chrono::system_clock::now ());
+  return getLeftTime (std::move (user));
 }
 
 std::optional<userver::storages::postgres::TimePointTz>
-services::control_role::WorktimeService::getTimeFromDb (
-    const userver::storages::Query &query, std::string_view transactionName,
-    const Worker &user, std::chrono::system_clock::time_point &&when) const
+services::control_role::WorktimeService::getUserWorktimeFromDB (
+    const userver::storages::Query &query, const Worker &user,
+    utils::time::WorkDay &&when) const
 {
   using namespace std::chrono;
-  auto trx = db ()->Begin (std::string{ transactionName },
+  auto trx = db ()->Begin ("get_worker_time_transaction",
                            storages::postgres::ClusterHostType::kMaster, {});
-  auto date = [time = std::move (when)] () {
-    auto date = year_month_day{ floor<days> (time) };
-    return userver::utils::datetime::Date (
-        static_cast<int> (date.year ()), static_cast<unsigned> (date.month ()),
-        static_cast<unsigned> (date.day ()));
-  }();
+
   auto res = trx.Execute (query, static_cast<int> (user),
-                          utils::datetime::ToString (date));
+                          userver::utils::datetime::ToString (when ()));
   trx.Rollback ();
   auto result
       = res.AsSingleRow<std::optional<storages::postgres::TimePointTz>> ();
@@ -170,32 +205,31 @@ services::control_role::WorktimeService::getTimeFromDb (
 
 std::optional<userver::storages::postgres::TimePointTz>
 services::control_role::WorktimeService::getArrivalTime (
-    const Worker &user, std::chrono::system_clock::time_point &&when) const
+    const Worker &user, utils::time::WorkDay &&when) const
 {
-  return getTimeFromDb (worktime_postgres_service::sql::kGetArrivalTime,
-                        "get_worker_arrive_time_transaction", user,
-                        std::move (when));
+  return getUserWorktimeFromDB (
+      worktime_postgres_service::sql::kGetArrivalTime, user, std::move (when));
 }
 
 std::optional<userver::storages::postgres::TimePointTz>
 services::control_role::WorktimeService::getLeftTime (
-    const Worker &user, std::chrono::system_clock::time_point &&when) const
+    const Worker &user, utils::time::WorkDay &&when) const
 {
-  return getTimeFromDb (worktime_postgres_service::sql::kGetDepartTime,
-                        "get_worker_leave_time_transaction", user,
-                        std::move (when));
+  return getUserWorktimeFromDB (worktime_postgres_service::sql::kGetDepartTime,
+                                user, std::move (when));
 }
 
 bool
 services::control_role::WorktimeService::isOnWork (
     const Worker &user, std::chrono::system_clock::time_point &&when) const
 {
-  auto arrived = getArrivalTime (
-      Worker (user), std::chrono::system_clock::time_point{ when });
-  auto departed = getLeftTime (Worker (user),
-                               std::chrono::system_clock::time_point{ when });
+  auto arrived = getArrivalTime (Worker (user),
+                                 utils::time::WorkDay{ std::move (when) });
+  auto departed
+      = getLeftTime (Worker (user), utils::time::WorkDay{ std::move (when) });
   return arrived.has_value () and not departed.has_value ();
 }
+
 userver::server::handlers::HttpHandlerJsonBase::Value
 services::control_role::WorktimeService::prepareMessage (
     std::optional<userver::storages::postgres::TimePointTz> &&tp,
@@ -208,4 +242,17 @@ services::control_role::WorktimeService::prepareMessage (
     }
   b["on_work"] = isOnWork;
   return b.ExtractValue ();
+}
+
+bool
+services::control_role::WorktimeService::isWorked (
+    const Worker &user, utils::time::WorkDay &&when) const
+{
+  auto trx = db ()->Begin ("is-user-worked-transaction",
+                           storages::postgres::ClusterHostType::kMaster, {});
+  auto res = trx.Execute (worktime_postgres_service::sql::kCheckUserWorked,
+                          static_cast<int> (user),
+                          userver::utils::datetime::ToString (when ()));
+  trx.Rollback ();
+  return res.AsSingleRow<int> () == 1;
 }

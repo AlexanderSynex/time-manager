@@ -2,6 +2,8 @@
 
 #include "info/Worker.hpp"
 #include "services/details/UserService.hpp"
+#include "services/details/WorkDay.hpp"
+#include <chrono>
 #include <optional>
 #include <userver/clients/dns/component.hpp>
 #include <userver/components/component_list.hpp>
@@ -34,6 +36,9 @@ public:
                                 const Value &request_json,
                                 RequestContext &) const override;
 
+  Value HandleRequestInfoJsonThrow (Worker &&user, const HttpRequest &request,
+                                    RequestContext &) const;
+
   Value HandleRequestArriveJsonThrow (Worker &&user,
                                       const HttpRequest &request,
                                       RequestContext &) const;
@@ -43,24 +48,30 @@ public:
 
 private:
   std::optional<userver::storages::postgres::TimePointTz>
-  getTimeFromDb (const userver::storages::Query &,
-                 std::string_view transactionName, const Worker &user,
-                 std::chrono::system_clock::time_point &&when) const;
+  getUserWorktimeFromDB (const userver::storages::Query &, const Worker &user,
+                         utils::time::WorkDay &&when
+                         = utils::time::WorkDay::today ()) const;
+
   std::optional<userver::storages::postgres::TimePointTz>
-  getArrivalTime (const Worker &user,
-                  std::chrono::system_clock::time_point &&when) const;
+  getArrivalTime (const Worker &user, utils::time::WorkDay &&when
+                                      = utils::time::WorkDay::today ()) const;
+
   std::optional<userver::storages::postgres::TimePointTz>
-  getLeftTime (const Worker &user,
-               std::chrono::system_clock::time_point &&when) const;
+  getLeftTime (const Worker &user, utils::time::WorkDay &&date
+                                   = utils::time::WorkDay::today ()) const;
 
   std::optional<userver::storages::postgres::TimePointTz>
   workerArrived (const Worker &user) const;
+
   std::optional<userver::storages::postgres::TimePointTz>
   workerLeaved (const Worker &user) const;
 
   bool isOnWork (const Worker &user,
-                 std::chrono::system_clock::time_point &&when) const;
+                 std::chrono::system_clock::time_point &&when
+                 = std::chrono::system_clock::now ()) const;
 
+  bool isWorked (const Worker &user, utils::time::WorkDay &&when
+                                     = utils::time::WorkDay::today ()) const;
   Value
   prepareMessage (std::optional<userver::storages::postgres::TimePointTz> &&tp,
                   bool isOnWork) const;

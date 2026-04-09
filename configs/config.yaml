@@ -38,10 +38,9 @@ components_manager:
                 scopes:
                   - admin
 
-
         worktime-service:
             path: /api/v1/user/time/{action}
-            method: PUT,OPTIONS
+            method: GET,PUT,OPTIONS
             auth:
                 types:
                   - bearer
