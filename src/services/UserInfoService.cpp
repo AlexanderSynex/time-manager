@@ -45,7 +45,7 @@ UserInfoService::HandleRequestJsonThrow (const HttpRequest &request,
   auto user = getWorker (context);
   auto builder = formats::json::ValueBuilder{};
   builder["table_id"] = std::to_string (user.value ().id);
-
+  builder["status"] = "нет данных";
   if (request_json.IsEmpty ())
     {
       builder["personal"] = getUserInfo (user.value ());
